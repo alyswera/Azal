@@ -29,7 +29,7 @@
                 </button>
             </nav>
             <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">
-                تحديث تلقائي مستمر v1.0
+                تحديث تلقائي مستمر v1.1
             </div>
         </div>
 
@@ -108,9 +108,8 @@
                         <div class="flex items-center gap-3">
                             <label class="font-bold text-slate-700 text-sm">اختر كود / اسم الموظف:</label>
                             <select id="emp-selector" onchange="renderEmployeeData()" class="border rounded-lg p-2 bg-slate-50 text-slate-800 focus:outline-blue-500 min-w-[200px]">
-                                </select>
+                            </select>
                         </div>
-                        <div class="text-sm text-slate-500 font-medium">عرض تفصيلي لأداء موظف المبيعات ومتابعته للعملاء</div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -154,94 +153,77 @@
                                         </tr>
                                     </thead>
                                     <tbody id="emp-table-body" class="text-slate-700 divide-y divide-slate-100">
-                                        </tbody>
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
-
                 </div>
-
             </main>
         </div>
     </div>
 
     <script>
-        // رابط الـ API الخاص بـ Google Apps Script الخاص بك
+        // ضع هنا رابط الـ Web App المحدث بعد إعادة النشر
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpCXaJZDPM_QdmKKj0lNXETIcYoQssnqS7B0tQcHooQ9iWDHVijqqnjl6XPZ6EJld4ig/exec";
         
-        let rawData = []; // البيانات الخام القادمة من جوجل شيت
-        let filteredData = []; // البيانات المصفاة بناء على التاريخ
+        let rawData = []; 
+        let filteredData = []; 
         
-        // كائنات ومثيلات الرسوم البيانية لإعادة تهيئتها عند الفلترة
         let chartStatusInstance = null;
         let chartProductsInstance = null;
         let chartEmpStatusInstance = null;
 
-        // دالة جلب البيانات الأساسية عند تشغيل الموقع التفاعلي
         async function fetchSheetData() {
             try {
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
                 
-                // تحويل البيانات المستلمة ومطابقتها مع أعمدة الجوجل شيت بالترتيب الصحيح
-                // الشيت يحتوي على: التاريخ، اسم العميل، رقم الهاتف، نوع المنتج، السعر، كود الموظف، الحالة، الملاحظات، تاريخ المتابعة
-                rawData = data.map(row => ({
-                    date: new Date(row[0] || row["التاريخ"]),
-                    customerName: row[1] || row["اسم العميل"],
-                    phone: row[2] || row["رقم الهاتف"],
-                    productType: row[3] || row["نوع المنتج"],
-                    price: parseFloat(row[4] || row["السعر"]) || 0,
-                    employeeCode: row[5] || row["كود الموظف"],
-                    status: row[6] || row["الحالة"] || 'غير محدد',
-                    notes: row[7] || row["الملاحظات"],
-                    followUpDate: row[8] || row["تاريخ المتابعة"]
-                })).filter(row => row.customerName && row.customerName !== "اسم العميل"); // استثناء العناوين
+                // قراءة البيانات مباشرة من الكائنات المستلمة والمصممة خصيصاً لموقعك
+                rawData = data.map(item => ({
+                    date: new Date(item.date),
+                    customerName: item.customerName,
+                    phone: item.phone,
+                    productType: item.productType,
+                    price: item.price,
+                    employeeCode: item.employeeCode,
+                    status: item.status,
+                    notes: item.notes,
+                    followUpDate: item.followUpDate
+                }));
                 
-                // إيقاف شاشة التحميل وإظهار لوحة التحكم
                 document.getElementById('loader').classList.add('hidden');
                 document.getElementById('dashboard-content').classList.remove('hidden');
                 
-                // تعيين الفلاتر الأولية وتحديث البيانات
                 initDateFilters();
                 applyFilters();
                 populateEmployeeSelector();
                 
             } catch (error) {
                 console.error("خطأ في جلب البيانات:", error);
-                document.getElementById('loader').innerHTML = `<p class="text-red-500 font-bold">فشل الاتصال بجوجل شيت، يرجى التأكد من صلاحيات الـ Web App.</p>`;
+                document.getElementById('loader').innerHTML = `<p class="text-red-500 font-bold">فشل الاتصال بجوجل شيت، يرجى التأكد من عمل New Deployment برابط صحيح.</p>`;
             }
         }
 
-        // إعداد التواريخ الافتراضية للفلترة (من بداية السنة الحالية إلى تاريخ اليوم)
-       // إعداد التواريخ الافتراضية (من أول يوم في الشهر الحالي إلى تاريخ اليوم تلقائياً)
-function initDateFilters() {
-    const today = new Date();
-    
-    // الحصول على أول يوم في الشهر الحالي (سنة، شهر، يوم 1)
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    // تحويل التواريخ إلى صيغة YYYY-MM-DD لتناسب حقول الإدخال في المتصفح
-    // استخدام توقيت جرينتش المحلي لتجنب مشاكل فرق التوقيت (-3 ساعات)
-    const offset = today.getTimezoneOffset() * 60000;
-    
-    const localFirstDay = new Date(firstDayOfMonth.getTime() - offset).toISOString().split('T')[0];
-    const localToday = new Date(today.getTime() - offset).toISOString().split('T')[0];
-    
-    // تعيين القيم في مربعات الفلترة واجهياً
-    document.getElementById('date-from').value = localFirstDay;
-    document.getElementById('date-to').value = localToday;
-}
+        function initDateFilters() {
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            const offset = today.getTimezoneOffset() * 60000;
+            const localFirstDay = new Date(firstDayOfMonth.getTime() - offset).toISOString().split('T')[0];
+            const localToday = new Date(today.getTime() - offset).toISOString().split('T')[0];
+            
+            document.getElementById('date-from').value = localFirstDay;
+            document.getElementById('date-to').value = localToday;
+        }
 
-        // تطبيق الفلترة وحساب الأرقام والرسوم من جديد
         function applyFilters() {
             const fromDate = new Date(document.getElementById('date-from').value);
             const toDate = new Date(document.getElementById('date-to').value);
-            // ضبط نهاية اليوم بالتوقيت
             toDate.setHours(23, 59, 59, 999);
 
             filteredData = rawData.filter(item => {
-                if (!item.date || isNaN(item.date.getTime())) return true; // إذا لم يوجد تاريخ لا نحذفه
+                if (!item.date || isNaN(item.date.getTime())) return true;
                 return item.date >= fromDate && item.date <= toDate;
             });
 
@@ -249,7 +231,6 @@ function initDateFilters() {
             renderEmployeeData();
         }
 
-        // بناء ومزامنة صفحة التحليل العام
         function renderMainDashboard() {
             let totalSales = 0;
             let totalLeads = filteredData.length;
@@ -261,30 +242,26 @@ function initDateFilters() {
             filteredData.forEach(item => {
                 totalSales += item.price;
                 
-                // فحص إذا كانت الحالة تعني إغلاق أو نجاح مبيعات (مثل: تم البيع، مكتمل، ناجح)
-                if(item.status.includes('بيع') || item.status.includes('مكتمل') || item.status.includes('ناجح') || item.status.includes('Won')) {
+                // مطابقة حالات النجاح الظاهرة في الشيت الخاص بك (مثل: تم تأكيد الطلب)
+                if(item.status.includes('تأكيد') || item.status.includes('بيع') || item.status.includes('مكتمل') || item.status.includes('ناجح')) {
                     wonLeads++;
                 }
 
-                // تجميع الحالات
                 statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
 
-                // تجميع المبيعات حسب المنتج
                 if(item.productType) {
                     productSales[item.productType] = (productSales[item.productType] || 0) + item.price;
                 }
             });
 
-            // حساب نسبة التحويل الذكية
             let convRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(1) : 0;
 
-            // تحديث كروت الأرقام في الواجهة
             document.getElementById('kpi-total-sales').innerText = totalSales.toLocaleString('ar-EG') + ' ج.م';
             document.getElementById('kpi-total-leads').innerText = totalLeads.toLocaleString('ar-EG');
             document.getElementById('kpi-conv-rate').innerText = convRate + '%';
             document.getElementById('kpi-won-leads').innerText = wonLeads.toLocaleString('ar-EG');
 
-            // 1. شارت الحالات البيعية (Pie Chart)
+            // 1. رسم بياني للحالات
             if(chartStatusInstance) chartStatusInstance.destroy();
             const ctxStatus = document.getElementById('chartStatus').getContext('2d');
             chartStatusInstance = new Chart(ctxStatus, {
@@ -293,22 +270,22 @@ function initDateFilters() {
                     labels: Object.keys(statusCounts),
                     datasets: [{
                         data: Object.values(statusCounts),
-                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b']
+                        backgroundColor: ['#ef4444', '#3b82f6', '#64748b', '#10b981', '#f59e0b', '#8b5cf6']
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // 2. شارت مبيعات المنتجات (Bar Chart)
+            // 2. رسم بياني للمنتجات
             if(chartProductsInstance) chartProductsInstance.destroy();
             const ctxProducts = document.getElementById('chartProducts').getContext('2d');
             chartProductsInstance = new Chart(ctxProducts, {
                 type: 'bar',
                 data: {
-                    labels: Object.keys(productSales),
+                    labels: Object.keys(productSales).length ? Object.keys(productSales) : ["بدون منتج"],
                     datasets: [{
                         label: 'حجم المبيعات بالعملة',
-                        data: Object.values(productSales),
+                        data: Object.values(productSales).length ? Object.values(productSales) : [totalSales],
                         backgroundColor: '#f97316'
                     }]
                 },
@@ -316,27 +293,23 @@ function initDateFilters() {
             });
         }
 
-        // تعبئة قائمة اختيار الموظفين بشكل ديناميكي فريد
         function populateEmployeeSelector() {
             const selector = document.getElementById('emp-selector');
-            // استخراج أكواد الموظفين الفريدة وغير الفارغة
             const employees = [...new Set(rawData.map(item => item.employeeCode).filter(code => code))];
             
             selector.innerHTML = '';
             employees.forEach(emp => {
                 const opt = document.createElement('option');
                 opt.value = emp;
-                opt.innerText = `الموظف كود (${emp})`;
+                opt.innerText = `الموظف (${emp})`;
                 selector.appendChild(opt);
             });
         }
 
-        // بناء ومزامنة صفحة الموظف بالتفصيل
         function renderEmployeeData() {
             const empCode = document.getElementById('emp-selector').value;
             if(!empCode) return;
 
-            // تصفية البيانات للموظف المحدد وضمن النطاق التاريخي المختار
             const empData = filteredData.filter(item => item.employeeCode === empCode);
 
             let empSales = 0;
@@ -348,12 +321,11 @@ function initDateFilters() {
 
             empData.forEach(item => {
                 empSales += item.price;
-                if(item.status.includes('بيع') || item.status.includes('مكتمل') || item.status.includes('ناجح') || item.status.includes('Won')) {
+                if(item.status.includes('تأكيد') || item.status.includes('بيع') || item.status.includes('مكتمل')) {
                     empWon++;
                 }
                 empStatusCounts[item.status] = (empStatusCounts[item.status] || 0) + 1;
 
-                // بناء صفوف الجدول للسجل التفصيلي
                 const dateStr = item.date ? item.date.toLocaleDateString('ar-EG') : '-';
                 tableHTML += `
                     <tr class="hover:bg-slate-50 transition-colors">
@@ -371,7 +343,6 @@ function initDateFilters() {
             document.getElementById('emp-kpi-conv').innerText = (empLeads > 0 ? ((empWon / empLeads) * 100).toFixed(1) : 0) + '%';
             document.getElementById('emp-table-body').innerHTML = tableHTML || '<tr><td colspan="5" class="p-4 text-center text-slate-400">لا توجد سجلات متابعة لهذا الموظف في الفترة المحددة</td></tr>';
 
-            // شارت حالات الموظف (Doughnut Chart)
             if(chartEmpStatusInstance) chartEmpStatusInstance.destroy();
             const ctxEmpStatus = document.getElementById('chartEmpStatus').getContext('2d');
             chartEmpStatusInstance = new Chart(ctxEmpStatus, {
@@ -380,14 +351,13 @@ function initDateFilters() {
                     labels: Object.keys(empStatusCounts),
                     datasets: [{
                         data: Object.values(empStatusCounts),
-                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']
+                        backgroundColor: ['#ef4444', '#3b82f6', '#64748b', '#10b981']
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
-        // التبديل السلس بين التبويبات (التحليل العام / تحليل الموظف)
         function switchTab(tabId) {
             document.getElementById('main-dashboard').classList.add('hidden');
             document.getElementById('employee-dashboard').classList.add('hidden');
@@ -405,7 +375,6 @@ function initDateFilters() {
             }
         }
 
-        // تشغيل الجلب فور فتح الصفحة تلقائياً
         window.onload = fetchSheetData;
     </script>
 </body>
