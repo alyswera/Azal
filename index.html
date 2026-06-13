@@ -68,7 +68,7 @@
         </button>
       </nav>
 
-      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v5.0 - Dashboard</div>
+      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v8.0 - Dashboard</div>
     </aside>
 
     <div class="flex-1 flex flex-col overflow-y-auto">
@@ -96,7 +96,6 @@
       </div>
 
       <main id="dashboard-content" class="p-6 space-y-6 hidden">
-
         <section id="main-dashboard" class="space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div class="card p-6 flex items-center justify-between">
@@ -152,27 +151,18 @@
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="card p-5">
-              <h4 class="text-md font-bold text-slate-700 mb-4">
-                <i class="fa-solid fa-chart-pie text-blue-500 ml-2"></i>
-                توزيع الطلبات حسب المحافظات
-              </h4>
+              <h4 class="text-md font-bold text-slate-700 mb-4"><i class="fa-solid fa-chart-pie text-blue-500 ml-2"></i>توزيع الطلبات حسب المحافظات</h4>
               <div class="relative h-72"><canvas id="chartStatus"></canvas></div>
             </div>
 
             <div class="card p-5">
-              <h4 class="text-md font-bold text-slate-700 mb-4">
-                <i class="fa-solid fa-tags text-orange-500 ml-2"></i>
-                قيمة المبيعات حسب المنتج
-              </h4>
+              <h4 class="text-md font-bold text-slate-700 mb-4"><i class="fa-solid fa-tags text-orange-500 ml-2"></i>قيمة المبيعات حسب المنتج</h4>
               <div class="relative h-72"><canvas id="chartProducts"></canvas></div>
             </div>
           </div>
 
           <div class="card p-5">
-            <h4 class="text-md font-bold text-slate-700 mb-4">
-              <i class="fa-solid fa-bullseye text-red-500 ml-2"></i>
-              مقارنة أداء الموظفين مقابل التارجت
-            </h4>
+            <h4 class="text-md font-bold text-slate-700 mb-4"><i class="fa-solid fa-bullseye text-red-500 ml-2"></i>مقارنة أداء الموظفين مقابل التارجت</h4>
             <div class="relative h-96"><canvas id="chartTarget"></canvas></div>
           </div>
         </section>
@@ -219,22 +209,10 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="card p-4">
-              <p class="text-sm text-slate-500">إجمالي الطلبات</p>
-              <h3 id="orders-kpi-total" class="text-2xl font-bold text-slate-800">0</h3>
-            </div>
-            <div class="card p-4">
-              <p class="text-sm text-slate-500">تم التوصيل</p>
-              <h3 id="orders-kpi-delivered" class="text-2xl font-bold text-green-600">0</h3>
-            </div>
-            <div class="card p-4">
-              <p class="text-sm text-slate-500">جاري التوصيل</p>
-              <h3 id="orders-kpi-shipping" class="text-2xl font-bold text-blue-600">0</h3>
-            </div>
-            <div class="card p-4">
-              <p class="text-sm text-slate-500">الملغى + المرتجع</p>
-              <h3 id="orders-kpi-cancelled-returned" class="text-2xl font-bold text-red-600">0</h3>
-            </div>
+            <div class="card p-4"><p class="text-sm text-slate-500">إجمالي الطلبات</p><h3 id="orders-kpi-total" class="text-2xl font-bold text-slate-800">0</h3></div>
+            <div class="card p-4"><p class="text-sm text-slate-500">تم التوصيل</p><h3 id="orders-kpi-delivered" class="text-2xl font-bold text-green-600">0</h3></div>
+            <div class="card p-4"><p class="text-sm text-slate-500">جاري التوصيل</p><h3 id="orders-kpi-shipping" class="text-2xl font-bold text-blue-600">0</h3></div>
+            <div class="card p-4"><p class="text-sm text-slate-500">الملغى + المرتجع</p><h3 id="orders-kpi-cancelled-returned" class="text-2xl font-bold text-red-600">0</h3></div>
           </div>
 
           <div class="card p-5">
@@ -264,7 +242,6 @@
             </div>
           </div>
         </section>
-
       </main>
     </div>
   </div>
@@ -290,7 +267,6 @@
     let singleEmployeeChart = null;
 
     const chartFontFamily = 'Cairo';
-    const chartLabelFont = { family: chartFontFamily, size: 14, weight: 'bold' };
     const chartTickFont = { family: chartFontFamily, size: 13, weight: 'bold' };
     const chartLegendFont = { family: chartFontFamily, size: 14, weight: 'bold' };
 
@@ -315,9 +291,9 @@
 
         initDateFilters();
         initOrdersFilters();
-        applyFilters();
         populateEmployeeSelector();
         populateOrdersEmployeeFilter();
+        applyFilters();
         renderOrdersTrackingTable();
       } catch (error) {
         console.error(error);
@@ -333,7 +309,7 @@
     function normalizeSalesRow(item) {
       return {
         ...item,
-        rowIndex: item.rowIndex,
+        rowIndex: Number(item.rowIndex || 0),
         date: item.date,
         customerName: normalizeText(item.customerName),
         phone: normalizeText(item.phone),
@@ -351,7 +327,7 @@
     function normalizeCustomerRow(item) {
       return {
         ...item,
-        rowIndex: item.rowIndex,
+        rowIndex: Number(item.rowIndex || 0),
         date: item.date,
         customerName: normalizeText(item.customerName),
         phone: normalizeText(item.phone),
@@ -481,9 +457,7 @@
         const orderValue = normalizeNumber(item.orderValue);
         productSalesMap[product] = (productSalesMap[product] || 0) + orderValue;
 
-        if (ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode)) {
-          employeeSalesMap[item.employeeCode] = (employeeSalesMap[item.employeeCode] || 0) + orderValue;
-        }
+        employeeSalesMap[item.employeeCode] = (employeeSalesMap[item.employeeCode] || 0) + orderValue;
       });
 
       const topGovEntry = Object.entries(governorateMap).sort((a, b) => b[1] - a[1])[0];
@@ -502,7 +476,6 @@
 
     function renderGovChart(governorateMap) {
       if (chartStatusInstance) chartStatusInstance.destroy();
-
       chartStatusInstance = new Chart(document.getElementById('chartStatus').getContext('2d'), {
         type: 'pie',
         data: {
@@ -519,7 +492,7 @@
             legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
             datalabels: {
               color: '#ffffff',
-              font: { family: chartFontFamily, size: 14, weight: 'bold' },
+              font: { family: 'Cairo', size: 14, weight: 'bold' },
               formatter: (value) => value
             }
           }
@@ -529,7 +502,6 @@
 
     function renderProductChart(productSalesMap) {
       if (chartProductsInstance) chartProductsInstance.destroy();
-
       chartProductsInstance = new Chart(document.getElementById('chartProducts').getContext('2d'), {
         type: 'bar',
         data: {
@@ -554,7 +526,7 @@
               offset: 8,
               clamp: true,
               color: '#0f172a',
-              font: { family: chartFontFamily, size: 14, weight: 'bold' },
+              font: { family: 'Cairo', size: 14, weight: 'bold' },
               formatter: (value) => value.toLocaleString('ar-EG')
             }
           },
@@ -594,7 +566,6 @@
               borderWidth: 3,
               tension: 0.25,
               pointRadius: 5,
-              pointHoverRadius: 6,
               datalabels: { display: false }
             }
           ]
@@ -612,7 +583,7 @@
               offset: 8,
               clamp: true,
               color: '#0f172a',
-              font: { family: chartFontFamily, size: 14, weight: 'bold' },
+              font: { family: 'Cairo', size: 14, weight: 'bold' },
               formatter: (value, context) => context.dataset.type === 'line' ? '' : value.toLocaleString('ar-EG')
             }
           },
@@ -687,26 +658,16 @@
             <td class="p-3 text-green-600 font-bold">${emp.totalSalesAmount.toLocaleString('ar-EG')} ج.م</td>
             <td class="p-3">${emp.avgSaleValue.toLocaleString('ar-EG')} ج.م</td>
             <td class="p-3">${emp.conversionRate}%</td>
-            <td class="p-3">
-              <span class="px-2 py-1 rounded text-xs ${emp.totalSalesAmount >= TARGET_PER_EMPLOYEE ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">
-                ${emp.targetPct}%
-              </span>
-            </td>
+            <td class="p-3"><span class="px-2 py-1 rounded text-xs ${emp.totalSalesAmount >= TARGET_PER_EMPLOYEE ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">${emp.targetPct}%</span></td>
           </tr>
         `;
       });
 
-      html += `
-              </tbody>
-            </table>
-          </div>
-        </div>
-
+      html += `</tbody></table></div></div>
         <div class="card p-5">
           <h4 class="text-md font-bold text-slate-700 mb-4">مقارنة مبيعات الموظفين</h4>
           <div class="relative h-96"><canvas id="employeeCompareChart"></canvas></div>
-        </div>
-      `;
+        </div>`;
 
       document.getElementById('employee-dynamic-section').innerHTML = html;
 
@@ -751,7 +712,7 @@
               align: 'end',
               offset: 8,
               clamp: true,
-              font: { family: chartFontFamily, size: 14, weight: 'bold' },
+              font: { family: 'Cairo', size: 14, weight: 'bold' },
               formatter: (value, ctx) => ctx.dataset.type === 'line' ? '' : value.toLocaleString('ar-EG')
             }
           },
@@ -792,86 +753,9 @@
           <div class="card p-4"><p class="text-sm text-slate-500">متوسط قيمة البيع</p><h3 class="text-2xl font-bold">${stats.avgSaleValue.toLocaleString('ar-EG')} ج.م</h3></div>
           <div class="card p-4"><p class="text-sm text-slate-500">معدل التحويل</p><h3 class="text-2xl font-bold">${stats.conversionRate}%</h3></div>
         </div>
-
-        <div class="card p-5">
-          <h4 class="text-md font-bold text-slate-700 mb-4">تحليل الموظف ${empCode}</h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-semibold">
-            <div class="p-4 rounded-lg bg-slate-50 border">نسبة تحقيق التارجت: <span class="text-red-600">${stats.targetPct}%</span></div>
-            <div class="p-4 rounded-lg bg-slate-50 border">إجمالي البيعات الفعلية: <span class="text-blue-600">${stats.completedSales}</span></div>
-          </div>
-        </div>
-
-        <div class="card p-5">
-          <h4 class="text-md font-bold text-slate-700 mb-4">توزيع البيعات حسب المحافظات</h4>
-          <div class="relative h-80"><canvas id="singleEmployeeChart"></canvas></div>
-        </div>
-
-        <div class="card p-5">
-          <h4 class="text-md font-bold text-slate-700 mb-4">تفاصيل البيعات الفعلية</h4>
-          <div class="overflow-x-auto">
-            <table class="w-full text-right border-collapse text-sm">
-              <thead>
-                <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-bold">
-                  <th class="p-3">التاريخ</th>
-                  <th class="p-3">اسم العميل</th>
-                  <th class="p-3">الهاتف</th>
-                  <th class="p-3">المنتج</th>
-                  <th class="p-3">قيمة الأوردر</th>
-                  <th class="p-3">المحافظة</th>
-                  <th class="p-3">العنوان</th>
-                  <th class="p-3">ملاحظات</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100 font-semibold">
       `;
 
-      empSalesRecords.forEach(item => {
-        html += `
-          <tr class="hover:bg-slate-50 transition-colors">
-            <td class="p-3">${item.date ? new Date(item.date).toLocaleDateString('ar-EG') : '-'}</td>
-            <td class="p-3 font-bold text-slate-900">${item.customerName || '-'}</td>
-            <td class="p-3 text-slate-700">${item.phone || '-'}</td>
-            <td class="p-3">${item.product || '-'}</td>
-            <td class="p-3 text-green-600 font-bold">${normalizeNumber(item.orderValue).toLocaleString('ar-EG')} ج.م</td>
-            <td class="p-3">${item.governorate || '-'}</td>
-            <td class="p-3">${item.address || '-'}</td>
-            <td class="p-3 text-xs text-slate-500">${item.notes || '-'}</td>
-          </tr>
-        `;
-      });
-
-      if (!empSalesRecords.length) {
-        html += `<tr><td colspan="8" class="p-4 text-center text-slate-400">لا توجد بيوعات لهذا الموظف في المدة المحددة</td></tr>`;
-      }
-
-      html += `</tbody></table></div></div>`;
       document.getElementById('employee-dynamic-section').innerHTML = html;
-
-      const ctx = document.getElementById('singleEmployeeChart').getContext('2d');
-      if (singleEmployeeChart) singleEmployeeChart.destroy();
-
-      singleEmployeeChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: Object.keys(govMap).length ? Object.keys(govMap) : ['لا توجد بيانات'],
-          datasets: [{
-            data: Object.values(govMap).length ? Object.values(govMap) : [1],
-            backgroundColor: ['#2563eb','#0ea5e9','#8b5cf6','#f97316','#10b981','#f43f5e']
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
-            datalabels: {
-              color: '#fff',
-              font: { family: chartFontFamily, size: 14, weight: 'bold' },
-              formatter: (value) => value
-            }
-          }
-        }
-      });
     }
 
     function getStatusBadgeClass(status) {
@@ -903,14 +787,8 @@
 
         if (searchValue) {
           const rowText = [
-            item.customerName,
-            item.phone,
-            item.product,
-            item.employeeCode,
-            item.governorate,
-            item.address,
-            item.notes,
-            String(item.orderValue)
+            item.customerName, item.phone, item.product, item.employeeCode,
+            item.governorate, item.address, item.notes, String(item.orderValue)
           ].join(' ').toLowerCase();
 
           if (!rowText.includes(searchValue)) return false;
@@ -955,7 +833,7 @@
           <td class="p-3">
             <div class="flex flex-col gap-2">
               <span class="${getStatusBadgeClass(item.orderStatus)}">${item.orderStatus}</span>
-              <select onchange="updateOrderStatus(${item.rowIndex}, this.value)" class="border rounded-lg p-2 bg-white text-slate-800 text-xs font-bold focus:outline-blue-500">
+              <select onchange="updateOrderStatus(${item.rowIndex}, this)" class="border rounded-lg p-2 bg-white text-slate-800 text-xs font-bold focus:outline-blue-500">
                 ${ORDER_STATUSES.map(status => `<option value="${status}" ${item.orderStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
               </select>
             </div>
@@ -964,35 +842,46 @@
       `).join('');
     }
 
-    async function updateOrderStatus(rowIndex, newStatus) {
+    async function updateOrderStatus(rowIndex, selectElement) {
+      const newStatus = selectElement.value;
+      const previousStatus = ordersTrackingData.find(item => item.rowIndex === Number(rowIndex))?.orderStatus || 'جاري التوصيل';
+
+      selectElement.disabled = true;
+
       try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'updateOrderStatus');
+        formData.append('rowIndex', String(rowIndex));
+        formData.append('orderStatus', newStatus);
+
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'updateOrderStatus',
-            rowIndex: rowIndex,
-            orderStatus: newStatus
-          })
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+          },
+          body: formData.toString()
         });
 
-        const result = await response.text();
+        const result = await response.json();
 
-        if (result.trim() !== 'Success') {
-          alert('حدث خطأ أثناء تحديث حالة الطلب');
-          return;
+        if (!result || result.status !== 'success') {
+          throw new Error(result?.message || 'Update failed');
         }
 
-        const targetRow = ordersTrackingData.find(item => Number(item.rowIndex) === Number(rowIndex));
+        const targetRow = ordersTrackingData.find(item => item.rowIndex === Number(rowIndex));
         if (targetRow) targetRow.orderStatus = newStatus;
 
-        const salesRow = salesData.find(item => Number(item.rowIndex) === Number(rowIndex));
+        const salesRow = salesData.find(item => item.rowIndex === Number(rowIndex));
         if (salesRow) salesRow.orderStatus = newStatus;
 
         renderOrdersTrackingTable();
       } catch (error) {
         console.error(error);
-        alert('تعذر الاتصال بالشيت لتحديث حالة الطلب');
+        alert('تعذر تحديث حالة الطلب. تأكد أن الـ Apps Script منشور بصلاحية Anyone وأنك تستخدم رابط /exec الصحيح.');
+        selectElement.value = previousStatus;
+      } finally {
+        selectElement.disabled = false;
       }
     }
 
