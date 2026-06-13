@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم التفاعلية - بيانات العملاء</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+        body { font-family: 'Cairo', sans-serif; background-color: #f3f4f6; }
+    </style>
+</head>
+<body>
+
+    <div class="flex h-screen overflow-hidden">
+        <div class="w-64 bg-slate-900 text-white flex flex-col shared-sidebar">
+            <div class="p-5 text-xl font-bold border-b border-slate-700 flex items-center gap-3">
+                <i class="fa-solid fa-chart-line text-blue-400"></i>
+                <span>نظام المتابعة</span>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <button onclick="switchTab('main-dashboard')" id="btn-main" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-600 text-white transition-all text-right">
+                    <i class="fa-solid fa-house"></i> <span>التحليل العام</span>
+                </button>
+                <button onclick="switchTab('employee-dashboard')" id="btn-emp" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all text-right">
+                    <i class="fa-solid fa-user-tie"></i> <span>تحليل الموظفين</span>
+                </button>
+            </nav>
+            <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">
+                تحديث تلقائي مستمر v1.0
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col overflow-y-auto">
+            <header class="bg-white shadow-sm p-4 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-10">
+                <h1 id="page-title" class="text-xl font-bold text-slate-800">التحليل العام للمبيعات والعملاء</h1>
+                
+                <div class="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    <div class="flex items-center gap-1">
+                        <label class="text-xs font-bold text-slate-600">من:</label>
+                        <input type="date" id="date-from" class="border rounded p-1 text-sm bg-white focus:outline-blue-500">
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <label class="text-xs font-bold text-slate-600">إلى:</label>
+                        <input type="date" id="date-to" class="border rounded p-1 text-sm bg-white focus:outline-blue-500">
+                    </div>
+                    <button onclick="applyFilters()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition">
+                        <i class="fa-solid fa-filter"></i> تصفية
+                    </button>
+                </div>
+            </header>
+
+            <div id="loader" class="flex-1 flex flex-col justify-center items-center p-10">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-3"></div>
+                <p class="text-slate-600 font-medium">جاري جلب البيانات المباشرة من جوجل شيت...</p>
+            </div>
+
+            <main id="dashboard-content" class="p-6 space-y-6 hidden">
+                
+                <div id="main-dashboard" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">إجمالي المبيعات</p>
+                                <h3 id="kpi-total-sales" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center text-green-600 text-xl"><i class="fa-solid fa-money-bill-wave"></i></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">إجمالي الليدز (العملاء)</p>
+                                <h3 id="kpi-total-leads" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 text-xl"><i class="fa-solid fa-users"></i></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">معدل التحويل (Conversion)</p>
+                                <h3 id="kpi-conv-rate" class="text-2xl font-bold text-slate-800 mt-1">0%</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 text-xl"><i class="fa-solid fa-chart-pie"></i></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">مبيعات مكتملة / ناجحة</p>
+                                <h3 id="kpi-won-leads" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 text-xl"><i class="fa-solid fa-circle-check"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                            <h4 class="text-md font-bold text-slate-700 mb-4"><i class="fa-solid fa-chart-bar text-blue-500 ml-2"></i>حالة العملاء (الحالات البيعية)</h4>
+                            <div class="relative h-64"><canvas id="chartStatus"></canvas></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                            <h4 class="text-md font-bold text-slate-700 mb-4"><i class="fa-solid fa-tags text-orange-500 ml-2"></i>المبيعات حسب نوع المنتج</h4>
+                            <div class="relative h-64"><canvas id="chartProducts"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="employee-dashboard" class="space-y-6 hidden">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <label class="font-bold text-slate-700 text-sm">اختر كود / اسم الموظف:</label>
+                            <select id="emp-selector" onchange="renderEmployeeData()" class="border rounded-lg p-2 bg-slate-50 text-slate-800 focus:outline-blue-500 min-w-[200px]">
+                                </select>
+                        </div>
+                        <div class="text-sm text-slate-500 font-medium">عرض تفصيلي لأداء موظف المبيعات ومتابعته للعملاء</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-xl text-white shadow-md">
+                            <p class="text-sm opacity-80">إجمالي المبيعات للموظف</p>
+                            <h3 id="emp-kpi-sales" class="text-3xl font-bold mt-2">0</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">عدد العملاء تحت إشرافه</p>
+                                <h3 id="emp-kpi-leads" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 text-xl"><i class="fa-solid fa-address-book"></i></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">معدل الإغلاق الناجح للموظف</p>
+                                <h3 id="emp-kpi-conv" class="text-2xl font-bold text-slate-800 mt-1">0%</h3>
+                            </div>
+                            <div class="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 text-xl"><i class="fa-solid fa-star"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                            <h4 class="text-md font-bold text-slate-700 mb-4">توزيع حالات عملاء الموظف</h4>
+                            <div class="relative h-64"><canvas id="chartEmpStatus"></canvas></div>
+                        </div>
+                        
+                        <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex flex-col">
+                            <h4 class="text-md font-bold text-slate-700 mb-3">سجل المتابعة الأخير للعملاء مع الموظف</h4>
+                            <div class="overflow-x-auto flex-1">
+                                <table class="w-full text-right border-collapse text-sm">
+                                    <thead>
+                                        <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                                            <th class="p-3">اسم العميل</th>
+                                            <th class="p-3">نوع المنتج</th>
+                                            <th class="p-3">السعر</th>
+                                            <th class="p-3">الحالة</th>
+                                            <th class="p-3">تاريخ المتابعة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="emp-table-body" class="text-slate-700 divide-y divide-slate-100">
+                                        </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // رابط الـ API الخاص بـ Google Apps Script الخاص بك
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpCXaJZDPM_QdmKKj0lNXETIcYoQssnqS7B0tQcHooQ9iWDHVijqqnjl6XPZ6EJld4ig/exec";
+        
+        let rawData = []; // البيانات الخام القادمة من جوجل شيت
+        let filteredData = []; // البيانات المصفاة بناء على التاريخ
+        
+        // كائنات ومثيلات الرسوم البيانية لإعادة تهيئتها عند الفلترة
+        let chartStatusInstance = null;
+        let chartProductsInstance = null;
+        let chartEmpStatusInstance = null;
+
+        // دالة جلب البيانات الأساسية عند تشغيل الموقع التفاعلي
+        async function fetchSheetData() {
+            try {
+                const response = await fetch(SCRIPT_URL);
+                const data = await response.json();
+                
+                // تحويل البيانات المستلمة ومطابقتها مع أعمدة الجوجل شيت بالترتيب الصحيح
+                // الشيت يحتوي على: التاريخ، اسم العميل، رقم الهاتف، نوع المنتج، السعر، كود الموظف، الحالة، الملاحظات، تاريخ المتابعة
+                rawData = data.map(row => ({
+                    date: new Date(row[0] || row["التاريخ"]),
+                    customerName: row[1] || row["اسم العميل"],
+                    phone: row[2] || row["رقم الهاتف"],
+                    productType: row[3] || row["نوع المنتج"],
+                    price: parseFloat(row[4] || row["السعر"]) || 0,
+                    employeeCode: row[5] || row["كود الموظف"],
+                    status: row[6] || row["الحالة"] || 'غير محدد',
+                    notes: row[7] || row["الملاحظات"],
+                    followUpDate: row[8] || row["تاريخ المتابعة"]
+                })).filter(row => row.customerName && row.customerName !== "اسم العميل"); // استثناء العناوين
+                
+                // إيقاف شاشة التحميل وإظهار لوحة التحكم
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('dashboard-content').classList.remove('hidden');
+                
+                // تعيين الفلاتر الأولية وتحديث البيانات
+                initDateFilters();
+                applyFilters();
+                populateEmployeeSelector();
+                
+            } catch (error) {
+                console.error("خطأ في جلب البيانات:", error);
+                document.getElementById('loader').innerHTML = `<p class="text-red-500 font-bold">فشل الاتصال بجوجل شيت، يرجى التأكد من صلاحيات الـ Web App.</p>`;
+            }
+        }
+
+        // إعداد التواريخ الافتراضية للفلترة (من بداية السنة الحالية إلى تاريخ اليوم)
+        function initDateFilters() {
+            const today = new Date();
+            const startOfYear = new Date(today.getFullYear(), 0, 1);
+            
+            document.getElementById('date-from').value = startOfYear.toISOString().split('T')[0];
+            document.getElementById('date-to').value = today.toISOString().split('T')[0];
+        }
+
+        // تطبيق الفلترة وحساب الأرقام والرسوم من جديد
+        function applyFilters() {
+            const fromDate = new Date(document.getElementById('date-from').value);
+            const toDate = new Date(document.getElementById('date-to').value);
+            // ضبط نهاية اليوم بالتوقيت
+            toDate.setHours(23, 59, 59, 999);
+
+            filteredData = rawData.filter(item => {
+                if (!item.date || isNaN(item.date.getTime())) return true; // إذا لم يوجد تاريخ لا نحذفه
+                return item.date >= fromDate && item.date <= toDate;
+            });
+
+            renderMainDashboard();
+            renderEmployeeData();
+        }
+
+        // بناء ومزامنة صفحة التحليل العام
+        function renderMainDashboard() {
+            let totalSales = 0;
+            let totalLeads = filteredData.length;
+            let wonLeads = 0;
+            
+            let statusCounts = {};
+            let productSales = {};
+
+            filteredData.forEach(item => {
+                totalSales += item.price;
+                
+                // فحص إذا كانت الحالة تعني إغلاق أو نجاح مبيعات (مثل: تم البيع، مكتمل، ناجح)
+                if(item.status.includes('بيع') || item.status.includes('مكتمل') || item.status.includes('ناجح') || item.status.includes('Won')) {
+                    wonLeads++;
+                }
+
+                // تجميع الحالات
+                statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
+
+                // تجميع المبيعات حسب المنتج
+                if(item.productType) {
+                    productSales[item.productType] = (productSales[item.productType] || 0) + item.price;
+                }
+            });
+
+            // حساب نسبة التحويل الذكية
+            let convRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(1) : 0;
+
+            // تحديث كروت الأرقام في الواجهة
+            document.getElementById('kpi-total-sales').innerText = totalSales.toLocaleString('ar-EG') + ' ج.م';
+            document.getElementById('kpi-total-leads').innerText = totalLeads.toLocaleString('ar-EG');
+            document.getElementById('kpi-conv-rate').innerText = convRate + '%';
+            document.getElementById('kpi-won-leads').innerText = wonLeads.toLocaleString('ar-EG');
+
+            // 1. شارت الحالات البيعية (Pie Chart)
+            if(chartStatusInstance) chartStatusInstance.destroy();
+            const ctxStatus = document.getElementById('chartStatus').getContext('2d');
+            chartStatusInstance = new Chart(ctxStatus, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 2. شارت مبيعات المنتجات (Bar Chart)
+            if(chartProductsInstance) chartProductsInstance.destroy();
+            const ctxProducts = document.getElementById('chartProducts').getContext('2d');
+            chartProductsInstance = new Chart(ctxProducts, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(productSales),
+                    datasets: [{
+                        label: 'حجم المبيعات بالعملة',
+                        data: Object.values(productSales),
+                        backgroundColor: '#f97316'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // تعبئة قائمة اختيار الموظفين بشكل ديناميكي فريد
+        function populateEmployeeSelector() {
+            const selector = document.getElementById('emp-selector');
+            // استخراج أكواد الموظفين الفريدة وغير الفارغة
+            const employees = [...new Set(rawData.map(item => item.employeeCode).filter(code => code))];
+            
+            selector.innerHTML = '';
+            employees.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp;
+                opt.innerText = `الموظف كود (${emp})`;
+                selector.appendChild(opt);
+            });
+        }
+
+        // بناء ومزامنة صفحة الموظف بالتفصيل
+        function renderEmployeeData() {
+            const empCode = document.getElementById('emp-selector').value;
+            if(!empCode) return;
+
+            // تصفية البيانات للموظف المحدد وضمن النطاق التاريخي المختار
+            const empData = filteredData.filter(item => item.employeeCode === empCode);
+
+            let empSales = 0;
+            let empLeads = empData.length;
+            let empWon = 0;
+            let empStatusCounts = {};
+            
+            let tableHTML = '';
+
+            empData.forEach(item => {
+                empSales += item.price;
+                if(item.status.includes('بيع') || item.status.includes('مكتمل') || item.status.includes('ناجح') || item.status.includes('Won')) {
+                    empWon++;
+                }
+                empStatusCounts[item.status] = (empStatusCounts[item.status] || 0) + 1;
+
+                // بناء صفوف الجدول للسجل التفصيلي
+                const dateStr = item.date ? item.date.toLocaleDateString('ar-EG') : '-';
+                tableHTML += `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-3 font-semibold">${item.customerName}</td>
+                        <td class="p-3">${item.productType || '-'}</td>
+                        <td class="p-3 text-green-600 font-bold">${item.price.toLocaleString()} ج.م</td>
+                        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">${item.status}</span></td>
+                        <td class="p-3 text-slate-500">${item.followUpDate || dateStr}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('emp-kpi-sales').innerText = empSales.toLocaleString('ar-EG') + ' ج.م';
+            document.getElementById('emp-kpi-leads').innerText = empLeads.toLocaleString('ar-EG');
+            document.getElementById('emp-kpi-conv').innerText = (empLeads > 0 ? ((empWon / empLeads) * 100).toFixed(1) : 0) + '%';
+            document.getElementById('emp-table-body').innerHTML = tableHTML || '<tr><td colspan="5" class="p-4 text-center text-slate-400">لا توجد سجلات متابعة لهذا الموظف في الفترة المحددة</td></tr>';
+
+            // شارت حالات الموظف (Doughnut Chart)
+            if(chartEmpStatusInstance) chartEmpStatusInstance.destroy();
+            const ctxEmpStatus = document.getElementById('chartEmpStatus').getContext('2d');
+            chartEmpStatusInstance = new Chart(ctxEmpStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(empStatusCounts),
+                    datasets: [{
+                        data: Object.values(empStatusCounts),
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // التبديل السلس بين التبويبات (التحليل العام / تحليل الموظف)
+        function switchTab(tabId) {
+            document.getElementById('main-dashboard').classList.add('hidden');
+            document.getElementById('employee-dashboard').classList.add('hidden');
+            document.getElementById('btn-main').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all text-right";
+            document.getElementById('btn-emp').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all text-right";
+
+            document.getElementById(tabId).classList.remove('hidden');
+            if(tabId === 'main-dashboard') {
+                document.getElementById('page-title').innerText = "التحليل العام للمبيعات والعملاء";
+                document.getElementById('btn-main').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-600 text-white transition-all text-right";
+            } else {
+                document.getElementById('page-title').innerText = "تحليل كفاءة وأداء موظفي المبيعات";
+                document.getElementById('btn-emp').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-600 text-white transition-all text-right";
+                renderEmployeeData();
+            }
+        }
+
+        // تشغيل الجلب فور فتح الصفحة تلقائياً
+        window.onload = fetchSheetData;
+    </script>
+</body>
+</html>
