@@ -15,26 +15,10 @@
 
   <style>
     * { box-sizing: border-box; }
-    body {
-      font-family: 'Cairo', sans-serif;
-      background-color: #f8fafc;
-      color: #0f172a;
-    }
+    body { font-family: 'Cairo', sans-serif; background-color: #f8fafc; color: #0f172a; }
     .tab-active { background: #2563eb !important; color: #fff !important; }
-    .card {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-    }
-    .status-badge {
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      display: inline-block;
-      white-space: nowrap;
-    }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+    .status-badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
     .status-delivered { background: #dcfce7; color: #166534; }
     .status-shipping { background: #dbeafe; color: #1d4ed8; }
     .status-cancelled { background: #fee2e2; color: #b91c1c; }
@@ -66,7 +50,7 @@
         </button>
       </nav>
 
-      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v9.0 - Dashboard</div>
+      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v10.0 - Dashboard</div>
     </aside>
 
     <div class="flex-1 flex flex-col overflow-y-auto">
@@ -250,39 +234,63 @@
 
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpCXaJZDPM_QdmKKj0lNXETIcYoQssnqS7B0tQcHooQ9iWDHVijqqnjl6XPZ6EJld4ig/exec";
     const TARGET_PER_EMPLOYEE = 40000;
-    const ALLOWED_EMPLOYEE_CODES = ['CC01', 'CC02', 'CC03', 'CC04', 'CC05'];
-    const ORDER_STATUSES = ['تم التوصيل', 'جاري التوصيل', 'تم الالغاء', 'مرتجع'];
 
     let salesData = [];
-    let customerData = [];
-    let ordersTrackingData = [];
     let filteredSalesData = [];
-    let filteredCustomerData = [];
-
     let chartStatusInstance = null;
     let chartProductsInstance = null;
     let chartTargetInstance = null;
     let employeeCompareChart = null;
+    let singleEmployeeChart = null;
 
-    const chartFontFamily = 'Cairo';
-    const chartTickFont = { family: chartFontFamily, size: 13, weight: 'bold' };
-    const chartLegendFont = { family: chartFontFamily, size: 14, weight: 'bold' };
+    function normalizeText(value) {
+      return String(value || '').trim();
+    }
+
+    function normalizeEmployeeCode(value) {
+      return String(value || '').trim().toUpperCase();
+    }
+
+    function normalizeNumber(value) {
+      if (typeof value === 'number') return value;
+      const cleaned = String(value || '').replace(/[^\d.,-]/g, '').replace(/,/g, '');
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? 0 : num;
+    }
+
+    function getEstimatedValue(item) {
+      const explicitValue = normalizeNumber(item.orderValue || item.saleValue || item.price);
+      if (explicitValue > 0) return explicitValue;
+
+      let qty = 1;
+      const q = String(item.quantity || '').trim();
+      if (q.includes('&')) qty = q.split('&').length;
+      else {
+        const parsed = parseFloat(q);
+        if (!isNaN(parsed) && parsed > 0) qty = parsed;
+      }
+      return qty * 350;
+    }
 
     async function fetchAllData() {
       try {
-        const [salesRes, customerRes, ordersRes] = await Promise.all([
-          fetch(SCRIPT_URL + "?action=fetchDashboardSalesData"),
-          fetch(SCRIPT_URL + "?action=fetchCustomerData"),
-          fetch(SCRIPT_URL + "?action=fetchOrdersTrackingData")
-        ]);
+        const response = await fetch(SCRIPT_URL + "?action=fetchDashboardSalesData");
+        const data = await response.json();
 
-        salesData = await salesRes.json();
-        customerData = await customerRes.json();
-        ordersTrackingData = await ordersRes.json();
-
-        salesData = salesData.map(normalizeSalesRow).filter(item => ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode));
-        customerData = customerData.map(normalizeCustomerRow).filter(item => ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode));
-        ordersTrackingData = ordersTrackingData.map(normalizeSalesRow).filter(item => ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode));
+        salesData = Array.isArray(data) ? data.map(item => ({
+          rowIndex: Number(item.rowIndex || 0),
+          date: item.date,
+          customerName: normalizeText(item.customerName),
+          phone: normalizeText(item.phone),
+          product: normalizeText(item.product),
+          quantity: normalizeText(item.quantity),
+          employeeCode: normalizeEmployeeCode(item.employeeCode),
+          governorate: normalizeText(item.governorate),
+          address: normalizeText(item.address),
+          notes: normalizeText(item.notes),
+          orderStatus: normalizeText(item.orderStatus) || 'جاري التوصيل',
+          orderValue: normalizeNumber(item.orderValue)
+        })) : [];
 
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('dashboard-content').classList.remove('hidden');
@@ -302,55 +310,6 @@
           </p>
         `;
       }
-    }
-
-    function normalizeSalesRow(item) {
-      return {
-        ...item,
-        rowIndex: Number(item.rowIndex || 0),
-        date: item.date,
-        customerName: normalizeText(item.customerName),
-        phone: normalizeText(item.phone),
-        product: normalizeText(item.product),
-        quantity: normalizeText(item.quantity),
-        governorate: normalizeText(item.governorate),
-        address: normalizeText(item.address),
-        employeeCode: normalizeEmployeeCode(item.employeeCode),
-        orderValue: normalizeNumber(item.orderValue),
-        notes: normalizeText(item.notes),
-        orderStatus: normalizeText(item.orderStatus) || 'جاري التوصيل'
-      };
-    }
-
-    function normalizeCustomerRow(item) {
-      return {
-        ...item,
-        rowIndex: Number(item.rowIndex || 0),
-        date: item.date,
-        customerName: normalizeText(item.customerName),
-        phone: normalizeText(item.phone),
-        product: normalizeText(item.product),
-        governorate: normalizeText(item.governorate),
-        address: normalizeText(item.address),
-        employeeCode: normalizeEmployeeCode(item.employeeCode),
-        saleValue: normalizeNumber(item.saleValue),
-        notes: normalizeText(item.notes)
-      };
-    }
-
-    function normalizeEmployeeCode(value) {
-      return String(value || '').trim().toUpperCase();
-    }
-
-    function normalizeText(value) {
-      return String(value || '').trim();
-    }
-
-    function normalizeNumber(value) {
-      if (typeof value === 'number') return value;
-      const cleaned = String(value || '').replace(/[^\d.,-]/g, '').replace(/,/g, '');
-      const num = parseFloat(cleaned);
-      return isNaN(num) ? 0 : num;
     }
 
     function initDateFilters() {
@@ -385,70 +344,56 @@
         return true;
       });
 
-      filteredCustomerData = customerData.filter(item => {
-        const d = new Date(item.date);
-        if (isNaN(d.getTime())) return true;
-        if (fromDate && d < fromDate) return false;
-        if (toDate && d > toDate) return false;
-        return true;
-      });
-
       renderMainDashboard();
       handleEmployeeSelectionChange();
     }
 
-    function calculateEmployeeStats(customerRows, salesRows) {
+    function calculateEmployeeStats(rows) {
       const summary = {};
 
-      ALLOWED_EMPLOYEE_CODES.forEach(code => {
-        summary[code] = {
-          code,
-          leadsCount: 0,
-          completedSales: 0,
-          totalSalesAmount: 0,
-          avgSaleValue: 0,
-          conversionRate: '0.0',
-          targetPct: '0.0'
-        };
-      });
+      rows.forEach(item => {
+        const code = normalizeEmployeeCode(item.employeeCode) || 'غير محدد';
+        if (code === 'غير محدد') return;
 
-      customerRows.forEach(item => {
-        const code = normalizeEmployeeCode(item.employeeCode);
-        if (!ALLOWED_EMPLOYEE_CODES.includes(code)) return;
-        summary[code].leadsCount += 1;
-      });
+        const value = getEstimatedValue(item);
 
-      salesRows.forEach(item => {
-        const code = normalizeEmployeeCode(item.employeeCode);
-        if (!ALLOWED_EMPLOYEE_CODES.includes(code)) return;
-        const orderValue = normalizeNumber(item.orderValue);
-        summary[code].completedSales += 1;
-        summary[code].totalSalesAmount += orderValue;
+        if (!summary[code]) {
+          summary[code] = {
+            code,
+            orders: 0,
+            sales: 0,
+            avgOrderValue: 0,
+            products: {},
+            governorates: {}
+          };
+        }
+
+        summary[code].orders += 1;
+        summary[code].sales += value;
+
+        const gov = item.governorate || 'غير محدد';
+        summary[code].governorates[gov] = (summary[code].governorates[gov] || 0) + 1;
+
+        const products = String(item.product || '').split('&').map(p => p.trim()).filter(Boolean);
+        products.forEach(p => {
+          summary[code].products[p] = (summary[code].products[p] || 0) + 1;
+        });
       });
 
       return Object.values(summary).map(emp => {
-        emp.avgSaleValue = emp.completedSales > 0
-          ? Math.round(emp.totalSalesAmount / emp.completedSales)
-          : 0;
-
-        emp.conversionRate = emp.leadsCount > 0
-          ? ((emp.completedSales / emp.leadsCount) * 100).toFixed(1)
-          : '0.0';
-
-        emp.targetPct = ((emp.totalSalesAmount / TARGET_PER_EMPLOYEE) * 100).toFixed(1);
-
+        emp.avgOrderValue = emp.orders ? Math.round(emp.sales / emp.orders) : 0;
+        emp.targetPct = ((emp.sales / TARGET_PER_EMPLOYEE) * 100).toFixed(1);
+        emp.topGovernorate = Object.entries(emp.governorates).sort((a,b)=>b[1]-a[1])[0]?.[0] || '-';
+        emp.topProduct = Object.entries(emp.products).sort((a,b)=>b[1]-a[1])[0]?.[0] || '-';
         return emp;
-      });
+      }).sort((a,b) => b.sales - a.sales);
     }
 
     function renderMainDashboard() {
-      const totalLeads = filteredCustomerData.length;
-      const totalCompletedSales = filteredSalesData.length;
-      const totalSalesAmount = filteredSalesData.reduce((sum, item) => sum + normalizeNumber(item.orderValue), 0);
-
-      const conversionRate = totalLeads > 0
-        ? ((totalCompletedSales / totalLeads) * 100).toFixed(1)
-        : '0.0';
+      const totalSalesAmount = filteredSalesData.reduce((sum, item) => sum + getEstimatedValue(item), 0);
+      const totalOrders = filteredSalesData.length;
+      const totalLeads = filteredSalesData.length;
+      const conversionRate = totalLeads > 0 ? ((totalOrders / totalLeads) * 100).toFixed(1) : '0.0';
 
       const governorateMap = {};
       const productSalesMap = {};
@@ -458,18 +403,25 @@
         const gov = item.governorate || 'غير محدد';
         governorateMap[gov] = (governorateMap[gov] || 0) + 1;
 
-        const product = item.product || 'غير محدد';
-        const orderValue = normalizeNumber(item.orderValue);
-        productSalesMap[product] = (productSalesMap[product] || 0) + orderValue;
+        const value = getEstimatedValue(item);
+        const products = String(item.product || '').split('&').map(p => p.trim()).filter(Boolean);
+        if (products.length) {
+          products.forEach(p => {
+            productSalesMap[p] = (productSalesMap[p] || 0) + 350;
+          });
+        } else {
+          productSalesMap['غير محدد'] = (productSalesMap['غير محدد'] || 0) + value;
+        }
 
-        employeeSalesMap[item.employeeCode] = (employeeSalesMap[item.employeeCode] || 0) + orderValue;
+        const code = item.employeeCode || 'غير محدد';
+        employeeSalesMap[code] = (employeeSalesMap[code] || 0) + value;
       });
 
-      const topGovEntry = Object.entries(governorateMap).sort((a, b) => b[1] - a[1])[0];
+      const topGovEntry = Object.entries(governorateMap).sort((a,b)=>b[1]-a[1])[0];
       const topGov = topGovEntry ? topGovEntry[0] : '-';
 
       document.getElementById('kpi-total-sales').innerText = totalSalesAmount.toLocaleString('ar-EG') + ' ج.م';
-      document.getElementById('kpi-total-orders').innerText = totalCompletedSales.toLocaleString('ar-EG') + ' بيعة';
+      document.getElementById('kpi-total-orders').innerText = totalOrders.toLocaleString('ar-EG') + ' بيعة';
       document.getElementById('kpi-total-leads').innerText = totalLeads.toLocaleString('ar-EG') + ' ليد';
       document.getElementById('kpi-conv-rate').innerText = conversionRate + '%';
       document.getElementById('kpi-top-gov').innerText = topGov;
@@ -481,25 +433,21 @@
 
     function renderGovChart(governorateMap) {
       if (chartStatusInstance) chartStatusInstance.destroy();
-      chartStatusInstance = new Chart(document.getElementById('chartStatus').getContext('2d'), {
+      chartStatusInstance = new Chart(document.getElementById('chartStatus'), {
         type: 'pie',
         data: {
           labels: Object.keys(governorateMap).length ? Object.keys(governorateMap) : ['لا توجد بيانات'],
           datasets: [{
             data: Object.values(governorateMap).length ? Object.values(governorateMap) : [1],
-            backgroundColor: ['#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd', '#e0f2fe', '#8b5cf6', '#10b981']
+            backgroundColor: ['#0284c7','#0ea5e9','#38bdf8','#7dd3fc','#2563eb','#8b5cf6','#10b981','#f59e0b']
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
-            datalabels: {
-              color: '#ffffff',
-              font: { family: 'Cairo', size: 14, weight: 'bold' },
-              formatter: (value) => value
-            }
+            legend: { labels: { font: { family: 'Cairo' } } },
+            datalabels: { color: '#fff', font: { family: 'Cairo', size: 11, weight: 'bold' } }
           }
         }
       });
@@ -507,7 +455,7 @@
 
     function renderProductChart(productSalesMap) {
       if (chartProductsInstance) chartProductsInstance.destroy();
-      chartProductsInstance = new Chart(document.getElementById('chartProducts').getContext('2d'), {
+      chartProductsInstance = new Chart(document.getElementById('chartProducts'), {
         type: 'bar',
         data: {
           labels: Object.keys(productSalesMap).length ? Object.keys(productSalesMap) : ['لا توجد بيانات'],
@@ -515,29 +463,40 @@
             label: 'قيمة المبيعات',
             data: Object.values(productSalesMap).length ? Object.values(productSalesMap) : [0],
             backgroundColor: '#f97316',
-            borderRadius: 8
+            borderRadius: 6,
+            maxBarThickness: 44
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          indexAxis: 'y',
+          layout: { padding: { top: 24 } },
           plugins: {
-            legend: { display: false },
+            legend: { labels: { font: { family: 'Cairo' } } },
             datalabels: {
-              display: 'auto',
+              color: '#334155',
               anchor: 'end',
               align: 'end',
-              offset: 8,
+              offset: 6,
               clamp: true,
-              color: '#0f172a',
-              font: { family: 'Cairo', size: 14, weight: 'bold' },
-              formatter: (value) => value.toLocaleString('ar-EG')
+              clip: false,
+              font: { family: 'Cairo', size: 10, weight: 'bold' },
+              formatter: (value) => Number(value).toLocaleString('ar-EG')
             }
           },
           scales: {
-            x: { beginAtZero: true, ticks: { font: chartTickFont, color: '#0f172a' } },
-            y: { ticks: { font: chartTickFont, color: '#0f172a' } }
+            x: {
+              ticks: {
+                maxRotation: 0,
+                minRotation: 0,
+                autoSkip: false,
+                font: { family: 'Cairo', size: 11 }
+              }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { font: { family: 'Cairo' } }
+            }
           }
         }
       });
@@ -546,31 +505,30 @@
     function renderEmployeeTargetChart(employeeSalesMap) {
       if (chartTargetInstance) chartTargetInstance.destroy();
 
-      const labels = ALLOWED_EMPLOYEE_CODES;
-      const actualValues = labels.map(code => employeeSalesMap[code] || 0);
-      const targetValues = labels.map(() => TARGET_PER_EMPLOYEE);
+      const labels = Object.keys(employeeSalesMap).length ? Object.keys(employeeSalesMap) : ['لا يوجد موظفين'];
+      const values = Object.values(employeeSalesMap).length ? Object.values(employeeSalesMap) : [0];
 
-      chartTargetInstance = new Chart(document.getElementById('chartTarget').getContext('2d'), {
+      chartTargetInstance = new Chart(document.getElementById('chartTarget'), {
+        type: 'bar',
         data: {
           labels,
           datasets: [
             {
-              type: 'bar',
               label: 'المبيعات الفعلية',
-              data: actualValues,
+              data: values,
               backgroundColor: '#2563eb',
-              borderRadius: 8,
-              maxBarThickness: 44
+              borderRadius: 6,
+              maxBarThickness: 48
             },
             {
-              type: 'line',
               label: 'التارجت',
-              data: targetValues,
+              data: labels.map(() => TARGET_PER_EMPLOYEE),
+              type: 'line',
               borderColor: '#ef4444',
               backgroundColor: '#ef4444',
-              borderWidth: 3,
-              tension: 0.25,
-              pointRadius: 5,
+              borderWidth: 2,
+              tension: 0.3,
+              pointRadius: 4,
               datalabels: { display: false }
             }
           ]
@@ -578,23 +536,23 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 28 } },
+          layout: { padding: { top: 24 } },
           plugins: {
-            legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
+            legend: { labels: { font: { family: 'Cairo' } } },
             datalabels: {
-              display: 'auto',
+              color: '#1e293b',
               anchor: 'end',
               align: 'end',
-              offset: 8,
+              offset: 6,
               clamp: true,
-              color: '#0f172a',
-              font: { family: 'Cairo', size: 14, weight: 'bold' },
-              formatter: (value, context) => context.dataset.type === 'line' ? '' : value.toLocaleString('ar-EG')
+              clip: false,
+              font: { family: 'Cairo', size: 10, weight: 'bold' },
+              formatter: (value, ctx) => ctx.dataset.type === 'line' ? '' : Number(value).toLocaleString('ar-EG')
             }
           },
           scales: {
-            x: { ticks: { font: chartTickFont, color: '#0f172a' } },
-            y: { beginAtZero: true, ticks: { font: chartTickFont, color: '#0f172a' } }
+            x: { ticks: { font: { family: 'Cairo', size: 11 } } },
+            y: { beginAtZero: true, ticks: { font: { family: 'Cairo' } } }
           }
         }
       });
@@ -602,8 +560,9 @@
 
     function populateEmployeeSelector() {
       const selector = document.getElementById('emp-selector');
+      const employees = [...new Set(salesData.map(item => item.employeeCode).filter(Boolean))];
       selector.innerHTML = '<option value="ALL">تحليل شامل ومقارن لجميع الموظفين</option>';
-      ALLOWED_EMPLOYEE_CODES.forEach(emp => {
+      employees.forEach(emp => {
         const opt = document.createElement('option');
         opt.value = emp;
         opt.innerText = `كود الموظف (${emp})`;
@@ -613,93 +572,105 @@
 
     function populateOrdersEmployeeFilter() {
       const selector = document.getElementById('orders-emp-filter');
+      const employees = [...new Set(salesData.map(item => item.employeeCode).filter(Boolean))];
       selector.innerHTML = '<option value="ALL">كل الموظفين</option>';
-      ALLOWED_EMPLOYEE_CODES.forEach(emp => {
+      employees.forEach(emp => {
         const opt = document.createElement('option');
         opt.value = emp;
-        opt.innerText = `كود الموظف (${emp})`;
+        opt.innerText = emp;
         selector.appendChild(opt);
       });
     }
 
     function handleEmployeeSelectionChange() {
       const val = document.getElementById('emp-selector').value;
-      if (val === 'ALL') {
-        renderGlobalEmployeesTable();
-      } else {
-        renderSingleEmployeeDashboard(val);
-      }
+      if (val === 'ALL') renderGlobalEmployeesTable();
+      else renderSingleEmployeeDashboard(val);
     }
 
     function renderGlobalEmployeesTable() {
-      const stats = calculateEmployeeStats(filteredCustomerData, filteredSalesData)
-        .sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
+      const stats = calculateEmployeeStats(filteredSalesData);
 
       let html = `
-        <div class="card p-5">
-          <h4 class="text-md font-bold text-slate-700 mb-4">جدول مقارنة أداء الموظفين</h4>
-          <div class="overflow-x-auto">
-            <table class="w-full text-right border-collapse text-sm">
-              <thead>
-                <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-bold">
-                  <th class="p-3">كود الموظف</th>
-                  <th class="p-3">عدد الليدز</th>
-                  <th class="p-3">عدد البيعات</th>
-                  <th class="p-3">إجمالي المبيعات</th>
-                  <th class="p-3">متوسط قيمة البيع</th>
-                  <th class="p-3">معدل التحويل</th>
-                  <th class="p-3">نسبة التارجت</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card p-4"><p class="text-sm text-slate-500">عدد الموظفين</p><h3 class="text-2xl font-bold">${stats.length}</h3></div>
+        <div class="card p-4"><p class="text-sm text-slate-500">إجمالي الأوردرات</p><h3 class="text-2xl font-bold">${stats.reduce((a,b)=>a+b.orders,0)}</h3></div>
+        <div class="card p-4"><p class="text-sm text-slate-500">إجمالي المبيعات</p><h3 class="text-2xl font-bold">${stats.reduce((a,b)=>a+b.sales,0).toLocaleString('ar-EG')} ج.م</h3></div>
+        <div class="card p-4"><p class="text-sm text-slate-500">أعلى موظف</p><h3 class="text-2xl font-bold">${stats[0]?.code || '-'}</h3></div>
+      </div>
+
+      <div class="card p-5">
+        <h4 class="text-md font-bold text-slate-700 mb-4">جدول مقارنة أداء الموظفين</h4>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-bold">
+                <th class="p-3">كود الموظف</th>
+                <th class="p-3">الأوردرات</th>
+                <th class="p-3">المبيعات</th>
+                <th class="p-3">متوسط الأوردر</th>
+                <th class="p-3">نسبة التارجت</th>
+                <th class="p-3">أعلى محافظة</th>
+                <th class="p-3">أكثر منتج</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
       `;
 
       stats.forEach(emp => {
         html += `
           <tr class="hover:bg-slate-50 font-semibold">
             <td class="p-3 text-blue-600 font-bold">${emp.code}</td>
-            <td class="p-3">${emp.leadsCount}</td>
-            <td class="p-3">${emp.completedSales}</td>
-            <td class="p-3 text-green-600 font-bold">${emp.totalSalesAmount.toLocaleString('ar-EG')} ج.م</td>
-            <td class="p-3">${emp.avgSaleValue.toLocaleString('ar-EG')} ج.م</td>
-            <td class="p-3">${emp.conversionRate}%</td>
-            <td class="p-3"><span class="px-2 py-1 rounded text-xs ${emp.totalSalesAmount >= TARGET_PER_EMPLOYEE ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">${emp.targetPct}%</span></td>
+            <td class="p-3">${emp.orders}</td>
+            <td class="p-3 text-green-600 font-bold">${emp.sales.toLocaleString('ar-EG')} ج.م</td>
+            <td class="p-3">${emp.avgOrderValue.toLocaleString('ar-EG')} ج.م</td>
+            <td class="p-3"><span class="px-2 py-1 rounded text-xs ${emp.sales >= TARGET_PER_EMPLOYEE ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">${emp.targetPct}%</span></td>
+            <td class="p-3">${emp.topGovernorate}</td>
+            <td class="p-3">${emp.topProduct}</td>
           </tr>
         `;
       });
 
-      html += `</tbody></table></div></div>
-        <div class="card p-5">
-          <h4 class="text-md font-bold text-slate-700 mb-4">مقارنة مبيعات الموظفين</h4>
-          <div class="relative h-96"><canvas id="employeeCompareChart"></canvas></div>
-        </div>`;
+      if (!stats.length) html += `<tr><td colspan="7" class="p-4 text-center text-slate-400">لا توجد بيانات في الفترة المحددة</td></tr>`;
+
+      html += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <h4 class="text-md font-bold text-slate-700 mb-4">مقارنة المبيعات مقابل التارجت</h4>
+        <div class="relative h-96"><canvas id="employeeCompareChart"></canvas></div>
+      </div>
+      `;
 
       document.getElementById('employee-dynamic-section').innerHTML = html;
 
-      const ctx = document.getElementById('employeeCompareChart').getContext('2d');
+      const ctx = document.getElementById('employeeCompareChart');
       if (employeeCompareChart) employeeCompareChart.destroy();
 
       employeeCompareChart = new Chart(ctx, {
+        type: 'bar',
         data: {
           labels: stats.map(e => e.code),
           datasets: [
             {
-              type: 'bar',
               label: 'المبيعات الفعلية',
-              data: stats.map(e => e.totalSalesAmount),
+              data: stats.map(e => e.sales),
               backgroundColor: '#2563eb',
-              borderRadius: 8,
-              maxBarThickness: 44
+              borderRadius: 6,
+              maxBarThickness: 42
             },
             {
-              type: 'line',
               label: 'التارجت',
               data: stats.map(() => TARGET_PER_EMPLOYEE),
+              type: 'line',
               borderColor: '#ef4444',
               backgroundColor: '#ef4444',
-              borderWidth: 3,
+              borderWidth: 2,
               tension: 0.3,
-              pointRadius: 5,
+              pointRadius: 4,
               datalabels: { display: false }
             }
           ]
@@ -707,181 +678,190 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 28 } },
+          layout: { padding: { top: 24 } },
+          scales: {
+            x: { ticks: { font: { family: 'Cairo', size: 11 } } },
+            y: { beginAtZero: true, ticks: { font: { family: 'Cairo' } } }
+          },
           plugins: {
-            legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
+            legend: { labels: { font: { family: 'Cairo' } } },
             datalabels: {
-              display: 'auto',
-              color: '#0f172a',
+              color: '#1e293b',
               anchor: 'end',
               align: 'end',
-              offset: 8,
-              clamp: true,
-              font: { family: 'Cairo', size: 14, weight: 'bold' },
-              formatter: (value, ctx) => ctx.dataset.type === 'line' ? '' : value.toLocaleString('ar-EG')
+              offset: 6,
+              font: { family: 'Cairo', size: 10, weight: 'bold' },
+              formatter: (value, ctx) => ctx.dataset.type === 'line' ? '' : Number(value).toLocaleString('ar-EG')
             }
-          },
-          scales: {
-            x: { ticks: { font: chartTickFont, color: '#0f172a' } },
-            y: { beginAtZero: true, ticks: { font: chartTickFont, color: '#0f172a' } }
           }
         }
       });
     }
 
     function renderSingleEmployeeDashboard(empCode) {
-      const empCustomerRecords = filteredCustomerData.filter(item => item.employeeCode === empCode);
-      const empSalesRecords = filteredSalesData.filter(item => item.employeeCode === empCode);
-
-      const stats = calculateEmployeeStats(empCustomerRecords, empSalesRecords).find(x => x.code === empCode) || {
-        code: empCode,
-        leadsCount: 0,
-        completedSales: 0,
-        totalSalesAmount: 0,
-        avgSaleValue: 0,
-        conversionRate: '0.0',
-        targetPct: '0.0'
+      const empRecords = filteredSalesData.filter(item => item.employeeCode === empCode);
+      const stats = calculateEmployeeStats(empRecords)[0] || {
+        code: empCode, orders: 0, sales: 0, avgOrderValue: 0, targetPct: 0, topGovernorate: '-', topProduct: '-'
       };
 
+      const govMap = {};
+      empRecords.forEach(item => {
+        const gov = item.governorate || 'غير محدد';
+        govMap[gov] = (govMap[gov] || 0) + 1;
+      });
+
       let html = `
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div class="card p-4"><p class="text-sm text-slate-500">كود الموظف</p><h3 class="text-2xl font-bold text-blue-600">${empCode}</h3></div>
-          <div class="card p-4"><p class="text-sm text-slate-500">عدد الليدز</p><h3 class="text-2xl font-bold">${stats.leadsCount}</h3></div>
-          <div class="card p-4"><p class="text-sm text-slate-500">عدد البيعات</p><h3 class="text-2xl font-bold">${stats.completedSales}</h3></div>
-          <div class="card p-4"><p class="text-sm text-slate-500">إجمالي المبيعات</p><h3 class="text-2xl font-bold text-green-600">${stats.totalSalesAmount.toLocaleString('ar-EG')} ج.م</h3></div>
-          <div class="card p-4"><p class="text-sm text-slate-500">متوسط قيمة البيع</p><h3 class="text-2xl font-bold">${stats.avgSaleValue.toLocaleString('ar-EG')} ج.م</h3></div>
-          <div class="card p-4"><p class="text-sm text-slate-500">معدل التحويل</p><h3 class="text-2xl font-bold">${stats.conversionRate}%</h3></div>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="card p-4"><p class="text-sm text-slate-500">كود الموظف</p><h3 class="text-2xl font-bold text-blue-600">${empCode}</h3></div>
+        <div class="card p-4"><p class="text-sm text-slate-500">عدد الأوردرات</p><h3 class="text-2xl font-bold">${stats.orders}</h3></div>
+        <div class="card p-4"><p class="text-sm text-slate-500">إجمالي المبيعات</p><h3 class="text-2xl font-bold text-green-600">${stats.sales.toLocaleString('ar-EG')} ج.م</h3></div>
+        <div class="card p-4"><p class="text-sm text-slate-500">متوسط الأوردر</p><h3 class="text-2xl font-bold">${stats.avgOrderValue.toLocaleString('ar-EG')} ج.م</h3></div>
+        <div class="card p-4"><p class="text-sm text-slate-500">نسبة التارجت</p><h3 class="text-2xl font-bold">${stats.targetPct}%</h3></div>
+      </div>
+
+      <div class="card p-5">
+        <h4 class="text-md font-bold text-slate-700 mb-4">تحليل الموظف ${empCode}</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-semibold">
+          <div class="p-4 rounded-lg bg-slate-50 border">أكثر محافظة نشاطًا: <span class="text-blue-600">${stats.topGovernorate}</span></div>
+          <div class="p-4 rounded-lg bg-slate-50 border">أكثر منتج تكرارًا: <span class="text-orange-600">${stats.topProduct}</span></div>
         </div>
+      </div>
+
+      <div class="card p-5">
+        <h4 class="text-md font-bold text-slate-700 mb-4">توزيع أوردرات الموظف حسب المحافظات</h4>
+        <div class="relative h-80"><canvas id="singleEmployeeChart"></canvas></div>
+      </div>
+
+      <div class="card p-5">
+        <h4 class="text-md font-bold text-slate-700 mb-4">تفاصيل أوردرات الموظف</h4>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-bold">
+                <th class="p-3">التاريخ</th>
+                <th class="p-3">العميل</th>
+                <th class="p-3">الهاتف</th>
+                <th class="p-3">المنتج</th>
+                <th class="p-3">الكمية</th>
+                <th class="p-3">المحافظة</th>
+                <th class="p-3">العنوان</th>
+                <th class="p-3">الملاحظات</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-semibold">
       `;
 
+      empRecords.forEach(item => {
+        html += `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-3">${item.date ? new Date(item.date).toLocaleDateString('ar-EG') : '-'}</td>
+            <td class="p-3 font-bold text-slate-900">${item.customerName || '-'}</td>
+            <td class="p-3 text-slate-700">${item.phone || '-'}</td>
+            <td class="p-3">${item.product || '-'}</td>
+            <td class="p-3">${item.quantity || '-'}</td>
+            <td class="p-3">${item.governorate || '-'}</td>
+            <td class="p-3">${item.address || '-'}</td>
+            <td class="p-3 text-xs text-slate-500">${item.notes || '-'}</td>
+          </tr>
+        `;
+      });
+
+      if (!empRecords.length) html += `<tr><td colspan="8" class="p-4 text-center text-slate-400">لا توجد بيانات لهذا الموظف في المدة المحددة</td></tr>`;
+
+      html += `</tbody></table></div></div>`;
       document.getElementById('employee-dynamic-section').innerHTML = html;
+
+      const ctx = document.getElementById('singleEmployeeChart');
+      if (singleEmployeeChart) singleEmployeeChart.destroy();
+
+      singleEmployeeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(govMap).length ? Object.keys(govMap) : ['لا توجد بيانات'],
+          datasets: [{
+            data: Object.values(govMap).length ? Object.values(govMap) : [1],
+            backgroundColor: ['#2563eb','#0ea5e9','#8b5cf6','#f97316','#10b981','#f43f5e']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { font: { family: 'Cairo' } } },
+            datalabels: { color: '#fff', font: { family: 'Cairo', weight: 'bold', size: 11 } }
+          }
+        }
+      });
     }
 
-    function getStatusBadgeClass(status) {
-      if (status === 'تم التوصيل') return 'status-badge status-delivered';
-      if (status === 'جاري التوصيل') return 'status-badge status-shipping';
-      if (status === 'تم الالغاء') return 'status-badge status-cancelled';
-      if (status === 'مرتجع') return 'status-badge status-returned';
-      return 'status-badge status-shipping';
-    }
-
-    function filterOrdersTrackingData() {
+    function renderOrdersTrackingTable() {
       const fromValue = document.getElementById('orders-date-from').value;
       const toValue = document.getElementById('orders-date-to').value;
-      const empValue = document.getElementById('orders-emp-filter').value;
-      const searchValue = document.getElementById('orders-search').value.trim().toLowerCase();
+      const empFilter = document.getElementById('orders-emp-filter').value;
+      const searchText = document.getElementById('orders-search').value.toLowerCase().trim();
 
       const fromDate = fromValue ? new Date(fromValue) : null;
       const toDate = toValue ? new Date(toValue) : null;
       if (toDate) toDate.setHours(23, 59, 59, 999);
 
-      return ordersTrackingData.filter(item => {
+      let rows = [...salesData];
+
+      rows = rows.filter(item => {
         const d = new Date(item.date);
         if (!isNaN(d.getTime())) {
           if (fromDate && d < fromDate) return false;
           if (toDate && d > toDate) return false;
         }
 
-        if (empValue !== 'ALL' && item.employeeCode !== empValue) return false;
+        if (empFilter !== 'ALL' && item.employeeCode !== empFilter) return false;
 
-        if (searchValue) {
-          const rowText = [
-            item.customerName, item.phone, item.product, item.employeeCode,
-            item.governorate, item.address, item.notes, String(item.orderValue)
-          ].join(' ').toLowerCase();
-
-          if (!rowText.includes(searchValue)) return false;
+        if (searchText) {
+          const haystack = `${item.customerName} ${item.phone} ${item.product} ${item.employeeCode}`.toLowerCase();
+          if (!haystack.includes(searchText)) return false;
         }
 
         return true;
       });
-    }
 
-    function renderOrdersTrackingTable() {
-      const rows = filterOrdersTrackingData();
-      const body = document.getElementById('orders-table-body');
+      const total = rows.length;
+      const delivered = rows.filter(r => r.orderStatus === 'تم التوصيل').length;
+      const shipping = rows.filter(r => r.orderStatus === 'جاري التوصيل').length;
+      const cancelledReturned = rows.filter(r => r.orderStatus === 'تم الالغاء' || r.orderStatus === 'مرتجع').length;
 
-      document.getElementById('orders-table-count').innerText = `${rows.length} طلب`;
+      document.getElementById('orders-kpi-total').innerText = total;
+      document.getElementById('orders-kpi-delivered').innerText = delivered;
+      document.getElementById('orders-kpi-shipping').innerText = shipping;
+      document.getElementById('orders-kpi-cancelled-returned').innerText = cancelledReturned;
+      document.getElementById('orders-table-count').innerText = `${total} طلب`;
 
-      const deliveredCount = rows.filter(r => r.orderStatus === 'تم التوصيل').length;
-      const shippingCount = rows.filter(r => r.orderStatus === 'جاري التوصيل').length;
-      const cancelledReturnedCount = rows.filter(r => r.orderStatus === 'تم الالغاء' || r.orderStatus === 'مرتجع').length;
-
-      document.getElementById('orders-kpi-total').innerText = rows.length.toLocaleString('ar-EG');
-      document.getElementById('orders-kpi-delivered').innerText = deliveredCount.toLocaleString('ar-EG');
-      document.getElementById('orders-kpi-shipping').innerText = shippingCount.toLocaleString('ar-EG');
-      document.getElementById('orders-kpi-cancelled-returned').innerText = cancelledReturnedCount.toLocaleString('ar-EG');
-
+      const tbody = document.getElementById('orders-table-body');
       if (!rows.length) {
-        body.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-slate-400">لا توجد طلبات مطابقة للفلاتر الحالية</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-slate-400">لا توجد طلبات مطابقة للفلاتر الحالية</td></tr>`;
         return;
       }
 
-      body.innerHTML = rows.map(item => `
-        <tr class="hover:bg-slate-50 transition-colors">
-          <td class="p-3">${item.date ? new Date(item.date).toLocaleString('ar-EG') : '-'}</td>
-          <td class="p-3 font-bold text-slate-900">${item.customerName || '-'}</td>
-          <td class="p-3 text-slate-700">${item.phone || '-'}</td>
-          <td class="p-3">${item.product || '-'}</td>
-          <td class="p-3">${item.quantity || '-'}</td>
-          <td class="p-3">${item.governorate || '-'}</td>
-          <td class="p-3">${item.address || '-'}</td>
-          <td class="p-3 text-blue-600 font-bold">${item.employeeCode || '-'}</td>
-          <td class="p-3 text-green-600 font-bold">${normalizeNumber(item.orderValue).toLocaleString('ar-EG')} ج.م</td>
-          <td class="p-3 text-slate-600">${item.notes || '-'}</td>
-          <td class="p-3">
-            <div class="flex flex-col gap-2">
-              <span class="${getStatusBadgeClass(item.orderStatus)}">${item.orderStatus}</span>
-              <select onchange="updateOrderStatus(${item.rowIndex}, this)" class="border rounded-lg p-2 bg-white text-slate-800 text-xs font-bold focus:outline-blue-500">
-                ${ORDER_STATUSES.map(status => `<option value="${status}" ${item.orderStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
-              </select>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-    }
+      tbody.innerHTML = rows.map(row => {
+        const badgeClass =
+          row.orderStatus === 'تم التوصيل' ? 'status-delivered' :
+          row.orderStatus === 'جاري التوصيل' ? 'status-shipping' :
+          row.orderStatus === 'مرتجع' ? 'status-returned' : 'status-cancelled';
 
-    async function updateOrderStatus(rowIndex, selectElement) {
-      const newStatus = selectElement.value;
-      const previousStatus = ordersTrackingData.find(item => item.rowIndex === Number(rowIndex))?.orderStatus || 'جاري التوصيل';
-
-      selectElement.disabled = true;
-
-      try {
-        const formData = new URLSearchParams();
-        formData.append('action', 'updateOrderStatus');
-        formData.append('rowIndex', String(rowIndex));
-        formData.append('orderStatus', newStatus);
-
-        const response = await fetch(SCRIPT_URL, {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-          },
-          body: formData.toString()
-        });
-
-        const result = await response.json();
-
-        if (!result || result.status !== 'success') {
-          throw new Error(result?.message || 'Update failed');
-        }
-
-        const targetRow = ordersTrackingData.find(item => item.rowIndex === Number(rowIndex));
-        if (targetRow) targetRow.orderStatus = newStatus;
-
-        const salesRow = salesData.find(item => item.rowIndex === Number(rowIndex));
-        if (salesRow) salesRow.orderStatus = newStatus;
-
-        renderOrdersTrackingTable();
-      } catch (error) {
-        console.error(error);
-        alert('تعذر تحديث حالة الطلب. تأكد أن الـ Apps Script منشور بصلاحية Anyone وأنك تستخدم رابط /exec الصحيح.');
-        selectElement.value = previousStatus;
-      } finally {
-        selectElement.disabled = false;
-      }
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3">${row.date ? new Date(row.date).toLocaleDateString('ar-EG') : '-'}</td>
+            <td class="p-3">${row.customerName || '-'}</td>
+            <td class="p-3">${row.phone || '-'}</td>
+            <td class="p-3">${row.product || '-'}</td>
+            <td class="p-3">${row.quantity || '-'}</td>
+            <td class="p-3">${row.governorate || '-'}</td>
+            <td class="p-3">${row.address || '-'}</td>
+            <td class="p-3 font-bold text-blue-600">${row.employeeCode || '-'}</td>
+            <td class="p-3">${getEstimatedValue(row).toLocaleString('ar-EG')} ج.م</td>
+            <td class="p-3">${row.notes || '-'}</td>
+            <td class="p-3"><span class="status-badge ${badgeClass}">${row.orderStatus || 'جاري التوصيل'}</span></td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function switchTab(tabId) {
@@ -910,9 +890,7 @@
     }
 
     document.addEventListener('input', function(e) {
-      if (e.target && e.target.id === 'orders-search') {
-        renderOrdersTrackingTable();
-      }
+      if (e.target && e.target.id === 'orders-search') renderOrdersTrackingTable();
     });
 
     window.onload = fetchAllData;
