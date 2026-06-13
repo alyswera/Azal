@@ -29,6 +29,18 @@
       border-radius: 16px;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
     }
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-block;
+      white-space: nowrap;
+    }
+    .status-delivered { background: #dcfce7; color: #166534; }
+    .status-shipping { background: #dbeafe; color: #1d4ed8; }
+    .status-cancelled { background: #fee2e2; color: #b91c1c; }
+    .status-returned { background: #fef3c7; color: #92400e; }
   </style>
 </head>
 <body>
@@ -49,9 +61,14 @@
           <i class="fa-solid fa-user-tie"></i>
           <span>تحليل وأداء الموظفين</span>
         </button>
+
+        <button onclick="switchTab('orders-dashboard')" id="btn-orders" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all text-right cursor-pointer">
+          <i class="fa-solid fa-truck-fast"></i>
+          <span>متابعة الطلبات</span>
+        </button>
       </nav>
 
-      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v4.1 - Dashboard</div>
+      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v5.0 - Dashboard</div>
     </aside>
 
     <div class="flex-1 flex flex-col overflow-y-auto">
@@ -79,6 +96,7 @@
       </div>
 
       <main id="dashboard-content" class="p-6 space-y-6 hidden">
+
         <section id="main-dashboard" class="space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div class="card p-6 flex items-center justify-between">
@@ -138,9 +156,7 @@
                 <i class="fa-solid fa-chart-pie text-blue-500 ml-2"></i>
                 توزيع الطلبات حسب المحافظات
               </h4>
-              <div class="relative h-72">
-                <canvas id="chartStatus"></canvas>
-              </div>
+              <div class="relative h-72"><canvas id="chartStatus"></canvas></div>
             </div>
 
             <div class="card p-5">
@@ -148,9 +164,7 @@
                 <i class="fa-solid fa-tags text-orange-500 ml-2"></i>
                 قيمة المبيعات حسب المنتج
               </h4>
-              <div class="relative h-72">
-                <canvas id="chartProducts"></canvas>
-              </div>
+              <div class="relative h-72"><canvas id="chartProducts"></canvas></div>
             </div>
           </div>
 
@@ -159,9 +173,7 @@
               <i class="fa-solid fa-bullseye text-red-500 ml-2"></i>
               مقارنة أداء الموظفين مقابل التارجت
             </h4>
-            <div class="relative h-96">
-              <canvas id="chartTarget"></canvas>
-            </div>
+            <div class="relative h-96"><canvas id="chartTarget"></canvas></div>
           </div>
         </section>
 
@@ -174,9 +186,85 @@
               </select>
             </div>
           </div>
-
           <div id="employee-dynamic-section"></div>
         </section>
+
+        <section id="orders-dashboard" class="space-y-6 hidden">
+          <div class="card p-4 flex flex-wrap gap-3 items-end">
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-1">من تاريخ</label>
+              <input type="date" id="orders-date-from" class="border rounded-lg p-2 bg-slate-50 text-slate-800 focus:outline-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-1">إلى تاريخ</label>
+              <input type="date" id="orders-date-to" class="border rounded-lg p-2 bg-slate-50 text-slate-800 focus:outline-blue-500">
+            </div>
+
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-1">الموظف</label>
+              <select id="orders-emp-filter" class="border rounded-lg p-2 bg-slate-50 text-slate-800 focus:outline-blue-500 min-w-[180px]">
+                <option value="ALL">كل الموظفين</option>
+              </select>
+            </div>
+
+            <div class="flex-1 min-w-[260px]">
+              <label class="block text-sm font-bold text-slate-700 mb-1">بحث</label>
+              <input type="text" id="orders-search" placeholder="ابحث باسم العميل أو الهاتف أو المنتج أو الكود..." class="w-full border rounded-lg p-2 bg-slate-50 text-slate-800 focus:outline-blue-500">
+            </div>
+
+            <button onclick="renderOrdersTrackingTable()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition cursor-pointer">
+              <i class="fa-solid fa-filter"></i> تطبيق
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="card p-4">
+              <p class="text-sm text-slate-500">إجمالي الطلبات</p>
+              <h3 id="orders-kpi-total" class="text-2xl font-bold text-slate-800">0</h3>
+            </div>
+            <div class="card p-4">
+              <p class="text-sm text-slate-500">تم التوصيل</p>
+              <h3 id="orders-kpi-delivered" class="text-2xl font-bold text-green-600">0</h3>
+            </div>
+            <div class="card p-4">
+              <p class="text-sm text-slate-500">جاري التوصيل</p>
+              <h3 id="orders-kpi-shipping" class="text-2xl font-bold text-blue-600">0</h3>
+            </div>
+            <div class="card p-4">
+              <p class="text-sm text-slate-500">الملغى + المرتجع</p>
+              <h3 id="orders-kpi-cancelled-returned" class="text-2xl font-bold text-red-600">0</h3>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-md font-bold text-slate-700">جدول متابعة الطلبات</h4>
+              <span id="orders-table-count" class="text-sm font-bold text-slate-500">0 طلب</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-right border-collapse text-sm">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-700 border-b border-slate-200 font-bold">
+                    <th class="p-3">التاريخ</th>
+                    <th class="p-3">اسم العميل</th>
+                    <th class="p-3">رقم الهاتف</th>
+                    <th class="p-3">المنتج</th>
+                    <th class="p-3">الكمية</th>
+                    <th class="p-3">المحافظة</th>
+                    <th class="p-3">العنوان</th>
+                    <th class="p-3">كود الموظف</th>
+                    <th class="p-3">قيمة الأوردر</th>
+                    <th class="p-3">ملاحظات إضافية</th>
+                    <th class="p-3">حالة الطلب</th>
+                  </tr>
+                </thead>
+                <tbody id="orders-table-body" class="divide-y divide-slate-100 font-semibold"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
       </main>
     </div>
   </div>
@@ -187,9 +275,11 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpCXaJZDPM_QdmKKj0lNXETIcYoQssnqS7B0tQcHooQ9iWDHVijqqnjl6XPZ6EJld4ig/exec";
     const TARGET_PER_EMPLOYEE = 40000;
     const ALLOWED_EMPLOYEE_CODES = ['CC01', 'CC02', 'CC03', 'CC04', 'CC05'];
+    const ORDER_STATUSES = ['تم التوصيل', 'جاري التوصيل', 'تم الالغاء', 'مرتجع'];
 
     let salesData = [];
     let customerData = [];
+    let ordersTrackingData = [];
     let filteredSalesData = [];
     let filteredCustomerData = [];
 
@@ -206,42 +296,29 @@
 
     async function fetchAllData() {
       try {
-        const [salesRes, customerRes] = await Promise.all([
+        const [salesRes, customerRes, ordersRes] = await Promise.all([
           fetch(SCRIPT_URL + "?action=fetchDashboardSalesData"),
-          fetch(SCRIPT_URL + "?action=fetchCustomerData")
+          fetch(SCRIPT_URL + "?action=fetchCustomerData"),
+          fetch(SCRIPT_URL + "?action=fetchOrdersTrackingData")
         ]);
 
         salesData = await salesRes.json();
         customerData = await customerRes.json();
+        ordersTrackingData = await ordersRes.json();
 
-        salesData = salesData.map(item => ({
-          ...item,
-          employeeCode: normalizeEmployeeCode(item.employeeCode),
-          customerName: normalizeText(item.customerName),
-          product: normalizeText(item.product),
-          governorate: normalizeText(item.governorate),
-          address: normalizeText(item.address),
-          notes: normalizeText(item.notes),
-          orderValue: normalizeNumber(item.orderValue)
-        })).filter(item => ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode));
-
-        customerData = customerData.map(item => ({
-          ...item,
-          employeeCode: normalizeEmployeeCode(item.employeeCode),
-          customerName: normalizeText(item.customerName),
-          product: normalizeText(item.product),
-          governorate: normalizeText(item.governorate),
-          address: normalizeText(item.address),
-          notes: normalizeText(item.notes),
-          saleValue: normalizeNumber(item.saleValue)
-        })).filter(item => ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode));
+        salesData = salesData.map(normalizeSalesRow).filter(item => ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode));
+        customerData = customerData.map(normalizeCustomerRow).filter(item => ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode));
+        ordersTrackingData = ordersTrackingData.map(normalizeSalesRow).filter(item => ALLOWED_EMPLOYEE_CODES.includes(item.employeeCode));
 
         document.getElementById('loader').classList.add('hidden');
         document.getElementById('dashboard-content').classList.remove('hidden');
 
         initDateFilters();
+        initOrdersFilters();
         applyFilters();
         populateEmployeeSelector();
+        populateOrdersEmployeeFilter();
+        renderOrdersTrackingTable();
       } catch (error) {
         console.error(error);
         document.getElementById('loader').innerHTML = `
@@ -251,6 +328,40 @@
           </p>
         `;
       }
+    }
+
+    function normalizeSalesRow(item) {
+      return {
+        ...item,
+        rowIndex: item.rowIndex,
+        date: item.date,
+        customerName: normalizeText(item.customerName),
+        phone: normalizeText(item.phone),
+        product: normalizeText(item.product),
+        quantity: normalizeText(item.quantity),
+        governorate: normalizeText(item.governorate),
+        address: normalizeText(item.address),
+        employeeCode: normalizeEmployeeCode(item.employeeCode),
+        orderValue: normalizeNumber(item.orderValue),
+        notes: normalizeText(item.notes),
+        orderStatus: normalizeText(item.orderStatus) || 'جاري التوصيل'
+      };
+    }
+
+    function normalizeCustomerRow(item) {
+      return {
+        ...item,
+        rowIndex: item.rowIndex,
+        date: item.date,
+        customerName: normalizeText(item.customerName),
+        phone: normalizeText(item.phone),
+        product: normalizeText(item.product),
+        governorate: normalizeText(item.governorate),
+        address: normalizeText(item.address),
+        employeeCode: normalizeEmployeeCode(item.employeeCode),
+        saleValue: normalizeNumber(item.saleValue),
+        notes: normalizeText(item.notes)
+      };
     }
 
     function normalizeEmployeeCode(value) {
@@ -272,9 +383,16 @@
       const today = new Date();
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const offset = today.getTimezoneOffset() * 60000;
-
       document.getElementById('date-from').value = new Date(firstDayOfMonth.getTime() - offset).toISOString().split('T')[0];
       document.getElementById('date-to').value = new Date(today.getTime() - offset).toISOString().split('T')[0];
+    }
+
+    function initOrdersFilters() {
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const offset = today.getTimezoneOffset() * 60000;
+      document.getElementById('orders-date-from').value = new Date(firstDayOfMonth.getTime() - offset).toISOString().split('T')[0];
+      document.getElementById('orders-date-to').value = new Date(today.getTime() - offset).toISOString().split('T')[0];
     }
 
     function applyFilters() {
@@ -329,21 +447,14 @@
       salesRows.forEach(item => {
         const code = normalizeEmployeeCode(item.employeeCode);
         if (!ALLOWED_EMPLOYEE_CODES.includes(code)) return;
-
         const orderValue = normalizeNumber(item.orderValue);
         summary[code].completedSales += 1;
         summary[code].totalSalesAmount += orderValue;
       });
 
       return Object.values(summary).map(emp => {
-        emp.avgSaleValue = emp.completedSales > 0
-          ? Math.round(emp.totalSalesAmount / emp.completedSales)
-          : 0;
-
-        emp.conversionRate = emp.assignedCustomers > 0
-          ? ((emp.completedSales / emp.assignedCustomers) * 100).toFixed(1)
-          : '0.0';
-
+        emp.avgSaleValue = emp.completedSales > 0 ? Math.round(emp.totalSalesAmount / emp.completedSales) : 0;
+        emp.conversionRate = emp.assignedCustomers > 0 ? ((emp.completedSales / emp.assignedCustomers) * 100).toFixed(1) : '0.0';
         emp.targetPct = ((emp.totalSalesAmount / TARGET_PER_EMPLOYEE) * 100).toFixed(1);
         return emp;
       });
@@ -405,12 +516,7 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              labels: {
-                font: chartLegendFont,
-                color: '#0f172a'
-              }
-            },
+            legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
             datalabels: {
               color: '#ffffff',
               font: { family: chartFontFamily, size: 14, weight: 'bold' },
@@ -440,9 +546,7 @@
           maintainAspectRatio: false,
           indexAxis: 'y',
           plugins: {
-            legend: {
-              display: false
-            },
+            legend: { display: false },
             datalabels: {
               display: 'auto',
               anchor: 'end',
@@ -455,19 +559,8 @@
             }
           },
           scales: {
-            x: {
-              beginAtZero: true,
-              ticks: {
-                font: chartTickFont,
-                color: '#0f172a'
-              }
-            },
-            y: {
-              ticks: {
-                font: chartTickFont,
-                color: '#0f172a'
-              }
-            }
+            x: { beginAtZero: true, ticks: { font: chartTickFont, color: '#0f172a' } },
+            y: { ticks: { font: chartTickFont, color: '#0f172a' } }
           }
         }
       });
@@ -511,12 +604,7 @@
           maintainAspectRatio: false,
           layout: { padding: { top: 28 } },
           plugins: {
-            legend: {
-              labels: {
-                font: chartLegendFont,
-                color: '#0f172a'
-              }
-            },
+            legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
             datalabels: {
               display: 'auto',
               anchor: 'end',
@@ -529,19 +617,8 @@
             }
           },
           scales: {
-            x: {
-              ticks: {
-                font: chartTickFont,
-                color: '#0f172a'
-              }
-            },
-            y: {
-              beginAtZero: true,
-              ticks: {
-                font: chartTickFont,
-                color: '#0f172a'
-              }
-            }
+            x: { ticks: { font: chartTickFont, color: '#0f172a' } },
+            y: { beginAtZero: true, ticks: { font: chartTickFont, color: '#0f172a' } }
           }
         }
       });
@@ -550,7 +627,17 @@
     function populateEmployeeSelector() {
       const selector = document.getElementById('emp-selector');
       selector.innerHTML = '<option value="ALL">تحليل شامل ومقارن لجميع الموظفين</option>';
+      ALLOWED_EMPLOYEE_CODES.forEach(emp => {
+        const opt = document.createElement('option');
+        opt.value = emp;
+        opt.innerText = `كود الموظف (${emp})`;
+        selector.appendChild(opt);
+      });
+    }
 
+    function populateOrdersEmployeeFilter() {
+      const selector = document.getElementById('orders-emp-filter');
+      selector.innerHTML = '<option value="ALL">كل الموظفين</option>';
       ALLOWED_EMPLOYEE_CODES.forEach(emp => {
         const opt = document.createElement('option');
         opt.value = emp;
@@ -617,9 +704,7 @@
 
         <div class="card p-5">
           <h4 class="text-md font-bold text-slate-700 mb-4">مقارنة مبيعات الموظفين</h4>
-          <div class="relative h-96">
-            <canvas id="employeeCompareChart"></canvas>
-          </div>
+          <div class="relative h-96"><canvas id="employeeCompareChart"></canvas></div>
         </div>
       `;
 
@@ -658,12 +743,7 @@
           maintainAspectRatio: false,
           layout: { padding: { top: 28 } },
           plugins: {
-            legend: {
-              labels: {
-                font: chartLegendFont,
-                color: '#0f172a'
-              }
-            },
+            legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
             datalabels: {
               display: 'auto',
               color: '#0f172a',
@@ -676,19 +756,8 @@
             }
           },
           scales: {
-            x: {
-              ticks: {
-                font: chartTickFont,
-                color: '#0f172a'
-              }
-            },
-            y: {
-              beginAtZero: true,
-              ticks: {
-                font: chartTickFont,
-                color: '#0f172a'
-              }
-            }
+            x: { ticks: { font: chartTickFont, color: '#0f172a' } },
+            y: { beginAtZero: true, ticks: { font: chartTickFont, color: '#0f172a' } }
           }
         }
       });
@@ -734,9 +803,7 @@
 
         <div class="card p-5">
           <h4 class="text-md font-bold text-slate-700 mb-4">توزيع البيعات حسب المحافظات</h4>
-          <div class="relative h-80">
-            <canvas id="singleEmployeeChart"></canvas>
-          </div>
+          <div class="relative h-80"><canvas id="singleEmployeeChart"></canvas></div>
         </div>
 
         <div class="card p-5">
@@ -777,13 +844,7 @@
         html += `<tr><td colspan="8" class="p-4 text-center text-slate-400">لا توجد بيوعات لهذا الموظف في المدة المحددة</td></tr>`;
       }
 
-      html += `
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-
+      html += `</tbody></table></div></div>`;
       document.getElementById('employee-dynamic-section').innerHTML = html;
 
       const ctx = document.getElementById('singleEmployeeChart').getContext('2d');
@@ -802,12 +863,7 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              labels: {
-                font: chartLegendFont,
-                color: '#0f172a'
-              }
-            },
+            legend: { labels: { font: chartLegendFont, color: '#0f172a' } },
             datalabels: {
               color: '#fff',
               font: { family: chartFontFamily, size: 14, weight: 'bold' },
@@ -818,24 +874,158 @@
       });
     }
 
+    function getStatusBadgeClass(status) {
+      if (status === 'تم التوصيل') return 'status-badge status-delivered';
+      if (status === 'جاري التوصيل') return 'status-badge status-shipping';
+      if (status === 'تم الالغاء') return 'status-badge status-cancelled';
+      if (status === 'مرتجع') return 'status-badge status-returned';
+      return 'status-badge status-shipping';
+    }
+
+    function filterOrdersTrackingData() {
+      const fromValue = document.getElementById('orders-date-from').value;
+      const toValue = document.getElementById('orders-date-to').value;
+      const empValue = document.getElementById('orders-emp-filter').value;
+      const searchValue = document.getElementById('orders-search').value.trim().toLowerCase();
+
+      const fromDate = fromValue ? new Date(fromValue) : null;
+      const toDate = toValue ? new Date(toValue) : null;
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+
+      return ordersTrackingData.filter(item => {
+        const d = new Date(item.date);
+        if (!isNaN(d.getTime())) {
+          if (fromDate && d < fromDate) return false;
+          if (toDate && d > toDate) return false;
+        }
+
+        if (empValue !== 'ALL' && item.employeeCode !== empValue) return false;
+
+        if (searchValue) {
+          const rowText = [
+            item.customerName,
+            item.phone,
+            item.product,
+            item.employeeCode,
+            item.governorate,
+            item.address,
+            item.notes,
+            String(item.orderValue)
+          ].join(' ').toLowerCase();
+
+          if (!rowText.includes(searchValue)) return false;
+        }
+
+        return true;
+      });
+    }
+
+    function renderOrdersTrackingTable() {
+      const rows = filterOrdersTrackingData();
+      const body = document.getElementById('orders-table-body');
+
+      document.getElementById('orders-table-count').innerText = `${rows.length} طلب`;
+
+      const deliveredCount = rows.filter(r => r.orderStatus === 'تم التوصيل').length;
+      const shippingCount = rows.filter(r => r.orderStatus === 'جاري التوصيل').length;
+      const cancelledReturnedCount = rows.filter(r => r.orderStatus === 'تم الالغاء' || r.orderStatus === 'مرتجع').length;
+
+      document.getElementById('orders-kpi-total').innerText = rows.length.toLocaleString('ar-EG');
+      document.getElementById('orders-kpi-delivered').innerText = deliveredCount.toLocaleString('ar-EG');
+      document.getElementById('orders-kpi-shipping').innerText = shippingCount.toLocaleString('ar-EG');
+      document.getElementById('orders-kpi-cancelled-returned').innerText = cancelledReturnedCount.toLocaleString('ar-EG');
+
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-slate-400">لا توجد طلبات مطابقة للفلاتر الحالية</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = rows.map(item => `
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="p-3">${item.date ? new Date(item.date).toLocaleString('ar-EG') : '-'}</td>
+          <td class="p-3 font-bold text-slate-900">${item.customerName || '-'}</td>
+          <td class="p-3 text-slate-700">${item.phone || '-'}</td>
+          <td class="p-3">${item.product || '-'}</td>
+          <td class="p-3">${item.quantity || '-'}</td>
+          <td class="p-3">${item.governorate || '-'}</td>
+          <td class="p-3">${item.address || '-'}</td>
+          <td class="p-3 text-blue-600 font-bold">${item.employeeCode || '-'}</td>
+          <td class="p-3 text-green-600 font-bold">${normalizeNumber(item.orderValue).toLocaleString('ar-EG')} ج.م</td>
+          <td class="p-3 text-slate-600">${item.notes || '-'}</td>
+          <td class="p-3">
+            <div class="flex flex-col gap-2">
+              <span class="${getStatusBadgeClass(item.orderStatus)}">${item.orderStatus}</span>
+              <select onchange="updateOrderStatus(${item.rowIndex}, this.value)" class="border rounded-lg p-2 bg-white text-slate-800 text-xs font-bold focus:outline-blue-500">
+                ${ORDER_STATUSES.map(status => `<option value="${status}" ${item.orderStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
+              </select>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function updateOrderStatus(rowIndex, newStatus) {
+      try {
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateOrderStatus',
+            rowIndex: rowIndex,
+            orderStatus: newStatus
+          })
+        });
+
+        const result = await response.text();
+
+        if (result.trim() !== 'Success') {
+          alert('حدث خطأ أثناء تحديث حالة الطلب');
+          return;
+        }
+
+        const targetRow = ordersTrackingData.find(item => Number(item.rowIndex) === Number(rowIndex));
+        if (targetRow) targetRow.orderStatus = newStatus;
+
+        const salesRow = salesData.find(item => Number(item.rowIndex) === Number(rowIndex));
+        if (salesRow) salesRow.orderStatus = newStatus;
+
+        renderOrdersTrackingTable();
+      } catch (error) {
+        console.error(error);
+        alert('تعذر الاتصال بالشيت لتحديث حالة الطلب');
+      }
+    }
+
     function switchTab(tabId) {
       document.getElementById('main-dashboard').classList.add('hidden');
       document.getElementById('employee-dashboard').classList.add('hidden');
+      document.getElementById('orders-dashboard').classList.add('hidden');
 
       document.getElementById('btn-main').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all text-right cursor-pointer";
       document.getElementById('btn-emp').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all text-right cursor-pointer";
+      document.getElementById('btn-orders').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all text-right cursor-pointer";
 
       document.getElementById(tabId).classList.remove('hidden');
 
       if (tabId === 'main-dashboard') {
         document.getElementById('page-title').innerText = "التحليل العام للمبيعات والعملاء";
         document.getElementById('btn-main').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg tab-active transition-all text-right cursor-pointer";
-      } else {
+      } else if (tabId === 'employee-dashboard') {
         document.getElementById('page-title').innerText = "تحليل وأداء الموظفين";
         document.getElementById('btn-emp').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg tab-active transition-all text-right cursor-pointer";
         handleEmployeeSelectionChange();
+      } else {
+        document.getElementById('page-title').innerText = "متابعة الطلبات";
+        document.getElementById('btn-orders').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg tab-active transition-all text-right cursor-pointer";
+        renderOrdersTrackingTable();
       }
     }
+
+    document.addEventListener('input', function(e) {
+      if (e.target && e.target.id === 'orders-search') {
+        renderOrdersTrackingTable();
+      }
+    });
 
     window.onload = fetchAllData;
   </script>
