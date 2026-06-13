@@ -51,7 +51,7 @@
         </button>
       </nav>
 
-      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v4.0 - Dashboard</div>
+      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v4.1 - Dashboard</div>
     </aside>
 
     <div class="flex-1 flex flex-col overflow-y-auto">
@@ -123,8 +123,8 @@
 
             <div class="card p-6 flex items-center justify-between">
               <div>
-                <p class="text-sm text-slate-500 font-medium">المحافظات النشطة</p>
-                <h3 id="kpi-active-govs" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                <p class="text-sm text-slate-500 font-medium">أعلى محافظة في الطلبات</p>
+                <h3 id="kpi-top-gov" class="text-2xl font-bold text-slate-800 mt-1">-</h3>
               </div>
               <div class="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 text-xl">
                 <i class="fa-solid fa-map-location-dot"></i>
@@ -136,7 +136,7 @@
             <div class="card p-5">
               <h4 class="text-md font-bold text-slate-700 mb-4">
                 <i class="fa-solid fa-chart-pie text-blue-500 ml-2"></i>
-                توزيع العملاء حسب المحافظات
+                توزيع الطلبات حسب المحافظات
               </h4>
               <div class="relative h-72">
                 <canvas id="chartStatus"></canvas>
@@ -184,7 +184,7 @@
   <script>
     Chart.register(ChartDataLabels);
 
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpCXaJZDPM_QdmKKj0lNXETIcYoQssnqS7B0tQcHooQ9iWDHVijqqnjl6XPZ6EJld4ig/exec";
+    const SCRIPT_URL = "PUT_YOUR_DEPLOYED_SCRIPT_URL_HERE";
     const TARGET_PER_EMPLOYEE = 40000;
     const ALLOWED_EMPLOYEE_CODES = ['CC01', 'CC02', 'CC03', 'CC04', 'CC05'];
 
@@ -198,6 +198,11 @@
     let chartTargetInstance = null;
     let employeeCompareChart = null;
     let singleEmployeeChart = null;
+
+    const chartFontFamily = 'Cairo';
+    const chartLabelFont = { family: chartFontFamily, size: 14, weight: 'bold' };
+    const chartTickFont = { family: chartFontFamily, size: 13, weight: 'bold' };
+    const chartLegendFont = { family: chartFontFamily, size: 14, weight: 'bold' };
 
     async function fetchAllData() {
       try {
@@ -311,25 +316,14 @@
           totalSalesAmount: 0,
           avgSaleValue: 0,
           conversionRate: '0.0',
-          targetPct: '0.0',
-          governorates: {},
-          products: {},
-          topGovernorate: '-',
-          topProduct: '-'
+          targetPct: '0.0'
         };
       });
 
       customerRows.forEach(item => {
         const code = normalizeEmployeeCode(item.employeeCode);
         if (!ALLOWED_EMPLOYEE_CODES.includes(code)) return;
-
         summary[code].assignedCustomers += 1;
-
-        const gov = normalizeText(item.governorate) || 'غير محدد';
-        summary[code].governorates[gov] = (summary[code].governorates[gov] || 0) + 1;
-
-        const product = normalizeText(item.product) || 'غير محدد';
-        summary[code].products[product] = (summary[code].products[product] || 0) + 1;
       });
 
       salesRows.forEach(item => {
@@ -351,10 +345,6 @@
           : '0.0';
 
         emp.targetPct = ((emp.totalSalesAmount / TARGET_PER_EMPLOYEE) * 100).toFixed(1);
-
-        emp.topGovernorate = Object.entries(emp.governorates).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
-        emp.topProduct = Object.entries(emp.products).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
-
         return emp;
       });
     }
@@ -372,12 +362,10 @@
       const productSalesMap = {};
       const employeeSalesMap = {};
 
-      filteredCustomerData.forEach(item => {
+      filteredSalesData.forEach(item => {
         const gov = item.governorate || 'غير محدد';
         governorateMap[gov] = (governorateMap[gov] || 0) + 1;
-      });
 
-      filteredSalesData.forEach(item => {
         const product = item.product || 'غير محدد';
         const orderValue = normalizeNumber(item.orderValue);
         productSalesMap[product] = (productSalesMap[product] || 0) + orderValue;
@@ -387,11 +375,14 @@
         }
       });
 
+      const topGovEntry = Object.entries(governorateMap).sort((a, b) => b[1] - a[1])[0];
+      const topGov = topGovEntry ? topGovEntry[0] : '-';
+
       document.getElementById('kpi-total-sales').innerText = totalSalesAmount.toLocaleString('ar-EG') + ' ج.م';
       document.getElementById('kpi-total-orders').innerText = totalCompletedSales.toLocaleString('ar-EG') + ' بيعة';
       document.getElementById('kpi-total-customers').innerText = totalAssignedCustomers.toLocaleString('ar-EG') + ' عميل';
       document.getElementById('kpi-conv-rate').innerText = conversionRate + '%';
-      document.getElementById('kpi-active-govs').innerText = Object.keys(governorateMap).length.toLocaleString('ar-EG') + ' محافظة';
+      document.getElementById('kpi-top-gov').innerText = topGov;
 
       renderGovChart(governorateMap);
       renderProductChart(productSalesMap);
@@ -414,10 +405,15 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { labels: { font: { family: 'Cairo' } } },
+            legend: {
+              labels: {
+                font: chartLegendFont,
+                color: '#0f172a'
+              }
+            },
             datalabels: {
-              color: '#fff',
-              font: { family: 'Cairo', weight: 'bold', size: 11 },
+              color: '#ffffff',
+              font: { family: chartFontFamily, size: 14, weight: 'bold' },
               formatter: (value) => value
             }
           }
@@ -436,7 +432,7 @@
             label: 'قيمة المبيعات',
             data: Object.values(productSalesMap).length ? Object.values(productSalesMap) : [0],
             backgroundColor: '#f97316',
-            borderRadius: 6
+            borderRadius: 8
           }]
         },
         options: {
@@ -444,25 +440,33 @@
           maintainAspectRatio: false,
           indexAxis: 'y',
           plugins: {
-            legend: { display: false },
+            legend: {
+              display: false
+            },
             datalabels: {
               display: 'auto',
               anchor: 'end',
               align: 'end',
-              offset: 6,
+              offset: 8,
               clamp: true,
-              color: '#334155',
-              font: { family: 'Cairo', size: 10, weight: 'bold' },
+              color: '#0f172a',
+              font: { family: chartFontFamily, size: 14, weight: 'bold' },
               formatter: (value) => value.toLocaleString('ar-EG')
             }
           },
           scales: {
             x: {
               beginAtZero: true,
-              ticks: { font: { family: 'Cairo' } }
+              ticks: {
+                font: chartTickFont,
+                color: '#0f172a'
+              }
             },
             y: {
-              ticks: { font: { family: 'Cairo', size: 11 } }
+              ticks: {
+                font: chartTickFont,
+                color: '#0f172a'
+              }
             }
           }
         }
@@ -485,8 +489,8 @@
               label: 'المبيعات الفعلية',
               data: actualValues,
               backgroundColor: '#2563eb',
-              borderRadius: 6,
-              maxBarThickness: 40
+              borderRadius: 8,
+              maxBarThickness: 44
             },
             {
               type: 'line',
@@ -494,9 +498,10 @@
               data: targetValues,
               borderColor: '#ef4444',
               backgroundColor: '#ef4444',
-              borderWidth: 2,
+              borderWidth: 3,
               tension: 0.25,
-              pointRadius: 4,
+              pointRadius: 5,
+              pointHoverRadius: 6,
               datalabels: { display: false }
             }
           ]
@@ -504,23 +509,39 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 24 } },
+          layout: { padding: { top: 28 } },
           plugins: {
-            legend: { labels: { font: { family: 'Cairo' } } },
+            legend: {
+              labels: {
+                font: chartLegendFont,
+                color: '#0f172a'
+              }
+            },
             datalabels: {
               display: 'auto',
               anchor: 'end',
               align: 'end',
-              offset: 6,
+              offset: 8,
               clamp: true,
-              color: '#1e293b',
-              font: { family: 'Cairo', size: 10, weight: 'bold' },
+              color: '#0f172a',
+              font: { family: chartFontFamily, size: 14, weight: 'bold' },
               formatter: (value, context) => context.dataset.type === 'line' ? '' : value.toLocaleString('ar-EG')
             }
           },
           scales: {
-            x: { ticks: { font: { family: 'Cairo', size: 11 } } },
-            y: { beginAtZero: true, ticks: { font: { family: 'Cairo' } } }
+            x: {
+              ticks: {
+                font: chartTickFont,
+                color: '#0f172a'
+              }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                font: chartTickFont,
+                color: '#0f172a'
+              }
+            }
           }
         }
       });
@@ -565,8 +586,6 @@
                   <th class="p-3">متوسط قيمة البيع</th>
                   <th class="p-3">معدل التحويل</th>
                   <th class="p-3">نسبة التارجت</th>
-                  <th class="p-3">أعلى محافظة</th>
-                  <th class="p-3">أكثر منتج</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
@@ -586,8 +605,6 @@
                 ${emp.targetPct}%
               </span>
             </td>
-            <td class="p-3">${emp.topGovernorate}</td>
-            <td class="p-3">${emp.topProduct}</td>
           </tr>
         `;
       });
@@ -620,8 +637,8 @@
               label: 'المبيعات الفعلية',
               data: stats.map(e => e.totalSalesAmount),
               backgroundColor: '#2563eb',
-              borderRadius: 6,
-              maxBarThickness: 42
+              borderRadius: 8,
+              maxBarThickness: 44
             },
             {
               type: 'line',
@@ -629,9 +646,9 @@
               data: stats.map(() => TARGET_PER_EMPLOYEE),
               borderColor: '#ef4444',
               backgroundColor: '#ef4444',
-              borderWidth: 2,
+              borderWidth: 3,
               tension: 0.3,
-              pointRadius: 4,
+              pointRadius: 5,
               datalabels: { display: false }
             }
           ]
@@ -639,23 +656,39 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: { padding: { top: 24 } },
+          layout: { padding: { top: 28 } },
           plugins: {
-            legend: { labels: { font: { family: 'Cairo' } } },
+            legend: {
+              labels: {
+                font: chartLegendFont,
+                color: '#0f172a'
+              }
+            },
             datalabels: {
               display: 'auto',
-              color: '#1e293b',
+              color: '#0f172a',
               anchor: 'end',
               align: 'end',
-              offset: 6,
+              offset: 8,
               clamp: true,
-              font: { family: 'Cairo', size: 10, weight: 'bold' },
+              font: { family: chartFontFamily, size: 14, weight: 'bold' },
               formatter: (value, ctx) => ctx.dataset.type === 'line' ? '' : value.toLocaleString('ar-EG')
             }
           },
           scales: {
-            x: { ticks: { font: { family: 'Cairo', size: 11 } } },
-            y: { beginAtZero: true, ticks: { font: { family: 'Cairo' } } }
+            x: {
+              ticks: {
+                font: chartTickFont,
+                color: '#0f172a'
+              }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                font: chartTickFont,
+                color: '#0f172a'
+              }
+            }
           }
         }
       });
@@ -672,13 +705,11 @@
         totalSalesAmount: 0,
         avgSaleValue: 0,
         conversionRate: '0.0',
-        targetPct: '0.0',
-        topGovernorate: '-',
-        topProduct: '-'
+        targetPct: '0.0'
       };
 
       const govMap = {};
-      empCustomerRecords.forEach(item => {
+      empSalesRecords.forEach(item => {
         const gov = item.governorate || 'غير محدد';
         govMap[gov] = (govMap[gov] || 0) + 1;
       });
@@ -695,15 +726,14 @@
 
         <div class="card p-5">
           <h4 class="text-md font-bold text-slate-700 mb-4">تحليل الموظف ${empCode}</h4>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm font-semibold">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-semibold">
             <div class="p-4 rounded-lg bg-slate-50 border">نسبة تحقيق التارجت: <span class="text-red-600">${stats.targetPct}%</span></div>
-            <div class="p-4 rounded-lg bg-slate-50 border">أعلى محافظة: <span class="text-blue-600">${stats.topGovernorate}</span></div>
-            <div class="p-4 rounded-lg bg-slate-50 border">أكثر منتج: <span class="text-orange-600">${stats.topProduct}</span></div>
+            <div class="p-4 rounded-lg bg-slate-50 border">إجمالي البيعات الفعلية: <span class="text-blue-600">${stats.completedSales}</span></div>
           </div>
         </div>
 
         <div class="card p-5">
-          <h4 class="text-md font-bold text-slate-700 mb-4">توزيع العملاء حسب المحافظات</h4>
+          <h4 class="text-md font-bold text-slate-700 mb-4">توزيع البيعات حسب المحافظات</h4>
           <div class="relative h-80">
             <canvas id="singleEmployeeChart"></canvas>
           </div>
@@ -772,10 +802,15 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { labels: { font: { family: 'Cairo' } } },
+            legend: {
+              labels: {
+                font: chartLegendFont,
+                color: '#0f172a'
+              }
+            },
             datalabels: {
               color: '#fff',
-              font: { family: 'Cairo', weight: 'bold', size: 11 },
+              font: { family: chartFontFamily, size: 14, weight: 'bold' },
               formatter: (value) => value
             }
           }
