@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <style>
     * { box-sizing: border-box; }
     body {
@@ -19,10 +20,7 @@
       background-color: #f8fafc;
       color: #0f172a;
     }
-    .tab-active {
-      background: #2563eb !important;
-      color: #fff !important;
-    }
+    .tab-active { background: #2563eb !important; color: #fff !important; }
     .card {
       background: #fff;
       border: 1px solid #e2e8f0;
@@ -68,12 +66,12 @@
         </button>
       </nav>
 
-      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v8.0 - Dashboard</div>
+      <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">v9.0 - Dashboard</div>
     </aside>
 
     <div class="flex-1 flex flex-col overflow-y-auto">
       <header class="bg-white shadow-sm p-4 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-10">
-        <h1 id="page-title" class="text-xl font-bold text-slate-800">التحليل العام للمبيعات والعملاء</h1>
+        <h1 id="page-title" class="text-xl font-bold text-slate-800">التحليل العام للمبيعات والليدز</h1>
 
         <div class="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
           <div class="flex items-center gap-1">
@@ -120,8 +118,8 @@
 
             <div class="card p-6 flex items-center justify-between">
               <div>
-                <p class="text-sm text-slate-500 font-medium">إجمالي عدد العملاء</p>
-                <h3 id="kpi-total-customers" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                <p class="text-sm text-slate-500 font-medium">إجمالي عدد الليدز</p>
+                <h3 id="kpi-total-leads" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
               </div>
               <div class="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 text-xl">
                 <i class="fa-solid fa-user-group"></i>
@@ -176,6 +174,7 @@
               </select>
             </div>
           </div>
+
           <div id="employee-dynamic-section"></div>
         </section>
 
@@ -264,7 +263,6 @@
     let chartProductsInstance = null;
     let chartTargetInstance = null;
     let employeeCompareChart = null;
-    let singleEmployeeChart = null;
 
     const chartFontFamily = 'Cairo';
     const chartTickFont = { family: chartFontFamily, size: 13, weight: 'bold' };
@@ -405,7 +403,7 @@
       ALLOWED_EMPLOYEE_CODES.forEach(code => {
         summary[code] = {
           code,
-          assignedCustomers: 0,
+          leadsCount: 0,
           completedSales: 0,
           totalSalesAmount: 0,
           avgSaleValue: 0,
@@ -417,7 +415,7 @@
       customerRows.forEach(item => {
         const code = normalizeEmployeeCode(item.employeeCode);
         if (!ALLOWED_EMPLOYEE_CODES.includes(code)) return;
-        summary[code].assignedCustomers += 1;
+        summary[code].leadsCount += 1;
       });
 
       salesRows.forEach(item => {
@@ -429,20 +427,27 @@
       });
 
       return Object.values(summary).map(emp => {
-        emp.avgSaleValue = emp.completedSales > 0 ? Math.round(emp.totalSalesAmount / emp.completedSales) : 0;
-        emp.conversionRate = emp.assignedCustomers > 0 ? ((emp.completedSales / emp.assignedCustomers) * 100).toFixed(1) : '0.0';
+        emp.avgSaleValue = emp.completedSales > 0
+          ? Math.round(emp.totalSalesAmount / emp.completedSales)
+          : 0;
+
+        emp.conversionRate = emp.leadsCount > 0
+          ? ((emp.completedSales / emp.leadsCount) * 100).toFixed(1)
+          : '0.0';
+
         emp.targetPct = ((emp.totalSalesAmount / TARGET_PER_EMPLOYEE) * 100).toFixed(1);
+
         return emp;
       });
     }
 
     function renderMainDashboard() {
-      const totalAssignedCustomers = filteredCustomerData.length;
+      const totalLeads = filteredCustomerData.length;
       const totalCompletedSales = filteredSalesData.length;
       const totalSalesAmount = filteredSalesData.reduce((sum, item) => sum + normalizeNumber(item.orderValue), 0);
 
-      const conversionRate = totalAssignedCustomers > 0
-        ? ((totalCompletedSales / totalAssignedCustomers) * 100).toFixed(1)
+      const conversionRate = totalLeads > 0
+        ? ((totalCompletedSales / totalLeads) * 100).toFixed(1)
         : '0.0';
 
       const governorateMap = {};
@@ -465,7 +470,7 @@
 
       document.getElementById('kpi-total-sales').innerText = totalSalesAmount.toLocaleString('ar-EG') + ' ج.م';
       document.getElementById('kpi-total-orders').innerText = totalCompletedSales.toLocaleString('ar-EG') + ' بيعة';
-      document.getElementById('kpi-total-customers').innerText = totalAssignedCustomers.toLocaleString('ar-EG') + ' عميل';
+      document.getElementById('kpi-total-leads').innerText = totalLeads.toLocaleString('ar-EG') + ' ليد';
       document.getElementById('kpi-conv-rate').innerText = conversionRate + '%';
       document.getElementById('kpi-top-gov').innerText = topGov;
 
@@ -638,7 +643,7 @@
               <thead>
                 <tr class="bg-slate-100 text-slate-600 border-b border-slate-200 font-bold">
                   <th class="p-3">كود الموظف</th>
-                  <th class="p-3">عدد العملاء</th>
+                  <th class="p-3">عدد الليدز</th>
                   <th class="p-3">عدد البيعات</th>
                   <th class="p-3">إجمالي المبيعات</th>
                   <th class="p-3">متوسط قيمة البيع</th>
@@ -653,7 +658,7 @@
         html += `
           <tr class="hover:bg-slate-50 font-semibold">
             <td class="p-3 text-blue-600 font-bold">${emp.code}</td>
-            <td class="p-3">${emp.assignedCustomers}</td>
+            <td class="p-3">${emp.leadsCount}</td>
             <td class="p-3">${emp.completedSales}</td>
             <td class="p-3 text-green-600 font-bold">${emp.totalSalesAmount.toLocaleString('ar-EG')} ج.م</td>
             <td class="p-3">${emp.avgSaleValue.toLocaleString('ar-EG')} ج.م</td>
@@ -730,7 +735,7 @@
 
       const stats = calculateEmployeeStats(empCustomerRecords, empSalesRecords).find(x => x.code === empCode) || {
         code: empCode,
-        assignedCustomers: 0,
+        leadsCount: 0,
         completedSales: 0,
         totalSalesAmount: 0,
         avgSaleValue: 0,
@@ -738,16 +743,10 @@
         targetPct: '0.0'
       };
 
-      const govMap = {};
-      empSalesRecords.forEach(item => {
-        const gov = item.governorate || 'غير محدد';
-        govMap[gov] = (govMap[gov] || 0) + 1;
-      });
-
       let html = `
         <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div class="card p-4"><p class="text-sm text-slate-500">كود الموظف</p><h3 class="text-2xl font-bold text-blue-600">${empCode}</h3></div>
-          <div class="card p-4"><p class="text-sm text-slate-500">عدد العملاء</p><h3 class="text-2xl font-bold">${stats.assignedCustomers}</h3></div>
+          <div class="card p-4"><p class="text-sm text-slate-500">عدد الليدز</p><h3 class="text-2xl font-bold">${stats.leadsCount}</h3></div>
           <div class="card p-4"><p class="text-sm text-slate-500">عدد البيعات</p><h3 class="text-2xl font-bold">${stats.completedSales}</h3></div>
           <div class="card p-4"><p class="text-sm text-slate-500">إجمالي المبيعات</p><h3 class="text-2xl font-bold text-green-600">${stats.totalSalesAmount.toLocaleString('ar-EG')} ج.م</h3></div>
           <div class="card p-4"><p class="text-sm text-slate-500">متوسط قيمة البيع</p><h3 class="text-2xl font-bold">${stats.avgSaleValue.toLocaleString('ar-EG')} ج.م</h3></div>
@@ -897,7 +896,7 @@
       document.getElementById(tabId).classList.remove('hidden');
 
       if (tabId === 'main-dashboard') {
-        document.getElementById('page-title').innerText = "التحليل العام للمبيعات والعملاء";
+        document.getElementById('page-title').innerText = "التحليل العام للمبيعات والليدز";
         document.getElementById('btn-main').className = "w-full flex items-center gap-3 px-4 py-3 rounded-lg tab-active transition-all text-right cursor-pointer";
       } else if (tabId === 'employee-dashboard') {
         document.getElementById('page-title').innerText = "تحليل وأداء الموظفين";
