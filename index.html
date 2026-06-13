@@ -214,13 +214,24 @@
         }
 
         // إعداد التواريخ الافتراضية للفلترة (من بداية السنة الحالية إلى تاريخ اليوم)
-        function initDateFilters() {
-            const today = new Date();
-            const startOfYear = new Date(today.getFullYear(), 0, 1);
-            
-            document.getElementById('date-from').value = startOfYear.toISOString().split('T')[0];
-            document.getElementById('date-to').value = today.toISOString().split('T')[0];
-        }
+       // إعداد التواريخ الافتراضية (من أول يوم في الشهر الحالي إلى تاريخ اليوم تلقائياً)
+function initDateFilters() {
+    const today = new Date();
+    
+    // الحصول على أول يوم في الشهر الحالي (سنة، شهر، يوم 1)
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    // تحويل التواريخ إلى صيغة YYYY-MM-DD لتناسب حقول الإدخال في المتصفح
+    // استخدام توقيت جرينتش المحلي لتجنب مشاكل فرق التوقيت (-3 ساعات)
+    const offset = today.getTimezoneOffset() * 60000;
+    
+    const localFirstDay = new Date(firstDayOfMonth.getTime() - offset).toISOString().split('T')[0];
+    const localToday = new Date(today.getTime() - offset).toISOString().split('T')[0];
+    
+    // تعيين القيم في مربعات الفلترة واجهياً
+    document.getElementById('date-from').value = localFirstDay;
+    document.getElementById('date-to').value = localToday;
+}
 
         // تطبيق الفلترة وحساب الأرقام والرسوم من جديد
         function applyFilters() {
